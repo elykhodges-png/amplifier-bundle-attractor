@@ -1,0 +1,35 @@
+bundle:
+  name: attractor-e2e-anthropic
+  version: 0.1.0
+  description: E2E test profile - Anthropic agent (no pipeline)
+
+includes:
+  - bundle: attractor:behaviors/attractor-core
+
+providers:
+  - module: provider-anthropic
+    source: git+https://github.com/microsoft/amplifier-module-provider-anthropic@main
+    config:
+      default_model: claude-sonnet-4-20250514
+
+session:
+  orchestrator:
+    module: loop-agent
+    source: ./modules/loop-agent
+    config:
+      max_tool_rounds_per_input: 20
+      reasoning_effort: high
+
+tools:
+  - module: tool-filesystem
+    source: git+https://github.com/microsoft/amplifier-module-tool-filesystem@main
+  - module: tool-bash
+    source: git+https://github.com/microsoft/amplifier-module-tool-bash@main
+    config:
+      timeout: 120
+  - module: tool-search
+    source: git+https://github.com/microsoft/amplifier-module-tool-search@main
+
+context:
+  - path: context/system-anthropic.md
+    role: system

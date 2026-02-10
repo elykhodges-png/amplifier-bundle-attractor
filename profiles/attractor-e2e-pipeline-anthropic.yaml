@@ -1,0 +1,36 @@
+bundle:
+  name: attractor-e2e-pipeline-anthropic
+  version: 0.1.0
+  description: E2E test profile - Anthropic pipeline (spawns agent sessions)
+
+includes:
+  - bundle: attractor:behaviors/attractor-core
+
+providers:
+  - module: provider-anthropic
+    source: git+https://github.com/microsoft/amplifier-module-provider-anthropic@main
+    config:
+      default_model: claude-sonnet-4-20250514
+  - module: provider-mock
+    source: git+https://github.com/microsoft/amplifier-module-provider-mock@main
+
+session:
+  orchestrator:
+    module: loop-pipeline
+    source: ./modules/loop-pipeline
+    config:
+      dot_file: ./tests/e2e/fixtures/simple_file_creation.dot
+
+tools:
+  - module: tool-filesystem
+    source: git+https://github.com/microsoft/amplifier-module-tool-filesystem@main
+  - module: tool-bash
+    source: git+https://github.com/microsoft/amplifier-module-tool-bash@main
+    config:
+      timeout: 120
+  - module: tool-search
+    source: git+https://github.com/microsoft/amplifier-module-tool-search@main
+
+context:
+  - path: context/system-anthropic.md
+    role: system

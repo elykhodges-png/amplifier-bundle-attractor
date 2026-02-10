@@ -1,0 +1,13 @@
+digraph conditional_test {
+    graph [goal="Create and validate a Python function"]
+    
+    start     [shape=Mdiamond]
+    implement [shape=box, prompt="Create calc.py with a function multiply(a,b) that returns a*b, and a test that asserts multiply(3,4)==12 and prints PASS"]
+    test      [shape=box, prompt="Run 'python3 calc.py' and check if it prints PASS. Report success or failure."]
+    gate      [shape=diamond, label="Tests pass?"]
+    done      [shape=Msquare]
+    
+    start -> implement -> test -> gate
+    gate -> done      [condition="outcome=success", weight=1]
+    gate -> implement [condition="outcome!=success", label="Retry", weight=0]
+}
