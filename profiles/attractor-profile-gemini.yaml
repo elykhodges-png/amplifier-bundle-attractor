@@ -1,0 +1,37 @@
+bundle:
+  name: attractor-profile-gemini
+  version: 1.0.0
+  description: >
+    Gemini coding agent profile (gemini-cli aligned).
+    Uses edit_file for edits, includes web search/fetch tools for
+    grounding, and a system prompt mirroring gemini-cli conventions.
+
+includes:
+  - bundle: attractor:behaviors/attractor-core
+
+providers:
+  - module: provider-gemini
+    source: git+https://github.com/microsoft/amplifier-module-provider-gemini@main
+
+session:
+  orchestrator:
+    module: loop-agent
+    source: ./modules/loop-agent
+    config:
+      default_command_timeout_ms: 10000
+
+tools:
+  - module: tool-filesystem
+    source: git+https://github.com/microsoft/amplifier-module-tool-filesystem@main
+  - module: tool-bash
+    source: git+https://github.com/microsoft/amplifier-module-tool-bash@main
+    config:
+      timeout: 10
+  - module: tool-search
+    source: git+https://github.com/microsoft/amplifier-module-tool-search@main
+  - module: tool-web
+    source: git+https://github.com/microsoft/amplifier-module-tool-web@main
+
+context:
+  - path: context/system-gemini.md
+    role: system

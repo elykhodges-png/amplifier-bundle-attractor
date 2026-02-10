@@ -1,0 +1,39 @@
+bundle:
+  name: attractor-profile-openai
+  version: 1.0.0
+  description: >
+    OpenAI coding agent profile (codex-rs aligned).
+    Uses apply_patch for file edits, 10s default shell timeout,
+    and a system prompt mirroring the codex-rs conventions.
+
+includes:
+  - bundle: attractor:behaviors/attractor-core
+
+providers:
+  - module: provider-openai
+    source: git+https://github.com/microsoft/amplifier-module-provider-openai@main
+
+session:
+  orchestrator:
+    module: loop-agent
+    source: ./modules/loop-agent
+    config:
+      default_command_timeout_ms: 10000
+
+tools:
+  - module: tool-apply-patch
+    source: ./modules/tool-apply-patch
+  - module: tool-filesystem
+    source: git+https://github.com/microsoft/amplifier-module-tool-filesystem@main
+    config:
+      expose: [read_file, write_file]
+  - module: tool-bash
+    source: git+https://github.com/microsoft/amplifier-module-tool-bash@main
+    config:
+      timeout: 10
+  - module: tool-search
+    source: git+https://github.com/microsoft/amplifier-module-tool-search@main
+
+context:
+  - path: context/system-openai.md
+    role: system

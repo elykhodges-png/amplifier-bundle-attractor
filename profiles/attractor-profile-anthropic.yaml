@@ -1,0 +1,35 @@
+bundle:
+  name: attractor-profile-anthropic
+  version: 1.0.0
+  description: >
+    Anthropic coding agent profile (Claude Code aligned).
+    Uses edit_file with old_string/new_string for edits, 120s default
+    shell timeout, and a system prompt mirroring Claude Code conventions.
+
+includes:
+  - bundle: attractor:behaviors/attractor-core
+
+providers:
+  - module: provider-anthropic
+    source: git+https://github.com/microsoft/amplifier-module-provider-anthropic@main
+
+session:
+  orchestrator:
+    module: loop-agent
+    source: ./modules/loop-agent
+    config:
+      default_command_timeout_ms: 120000
+
+tools:
+  - module: tool-filesystem
+    source: git+https://github.com/microsoft/amplifier-module-tool-filesystem@main
+  - module: tool-bash
+    source: git+https://github.com/microsoft/amplifier-module-tool-bash@main
+    config:
+      timeout: 120
+  - module: tool-search
+    source: git+https://github.com/microsoft/amplifier-module-tool-search@main
+
+context:
+  - path: context/system-anthropic.md
+    role: system

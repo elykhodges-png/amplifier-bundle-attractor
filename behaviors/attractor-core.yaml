@@ -1,0 +1,12 @@
+bundle:
+  name: attractor-core
+  version: 0.1.0
+  description: Core attractor tools and hooks (provider-agnostic)
+
+tools:
+  - module: tool-report-outcome
+    source: ./modules/tool-report-outcome
+
+hooks:
+  - module: hooks-tool-truncation
+    source: ./modules/hooks-tool-truncation
