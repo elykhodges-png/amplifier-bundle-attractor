@@ -39,5 +39,5 @@ tools:
     source: git+https://github.com/microsoft/amplifier-module-tool-search@main
 
 context:
-  - path: context/system-anthropic.md
-    role: system
+  include:
+    - context/system-anthropic.md

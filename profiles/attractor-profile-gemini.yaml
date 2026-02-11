@@ -33,5 +33,5 @@ tools:
     source: git+https://github.com/microsoft/amplifier-module-tool-web@main
 
 context:
-  - path: context/system-gemini.md
-    role: system
+  include:
+    - context/system-gemini.md
