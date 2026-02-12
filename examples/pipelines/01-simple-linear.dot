@@ -1,0 +1,26 @@
+// 01-simple-linear.dot -- The "hello world" of Attractor pipelines.
+//
+// A minimal linear pipeline: start -> implement -> done.
+// Tests: basic DOT parsing, start/exit node detection, linear traversal,
+//        codergen handler, $goal variable expansion, prompt/response logging.
+
+digraph SimpleLinear {
+    graph [
+        goal="Create a simple Python script that prints hello world",
+        label="Simple Linear Pipeline"
+    ]
+    rankdir=LR
+
+    // Entry and exit points (required by every pipeline)
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // A single codergen (LLM) node -- shape=box is the default
+    implement [
+        label="Implement",
+        prompt="Write a Python script that accomplishes the following goal: $goal"
+    ]
+
+    // Linear flow
+    start -> implement -> done
+}

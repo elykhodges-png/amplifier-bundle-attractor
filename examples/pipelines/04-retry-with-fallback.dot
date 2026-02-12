@@ -1,0 +1,57 @@
+// 04-retry-with-fallback.dot -- Retry logic and failure routing.
+//
+// A pipeline that exercises retry logic and fallback targets.
+// Tests: max_retries attribute, retry_target, fallback_retry_target,
+//        retry policy, goal gate + retry interaction, allow_partial.
+
+digraph RetryWithFallback {
+    graph [
+        goal="Generate a complex regex pattern that validates email addresses per RFC 5322",
+        label="Retry with Fallback Pipeline",
+        default_max_retry=3,
+        fallback_retry_target="simple_implement"
+    ]
+    rankdir=LR
+
+    // Structural nodes
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Primary implementation path -- attempts the hard version
+    plan [
+        label="Plan",
+        prompt="Plan the implementation of an RFC 5322 compliant email regex for: $goal"
+    ]
+
+    implement [
+        label="Implement (Hard)",
+        prompt="Write a comprehensive RFC 5322 email validation regex. This is complex -- handle all edge cases including quoted strings, domain literals, and comments.",
+        max_retries=2,
+        goal_gate=true,
+        retry_target="plan",
+        fallback_retry_target="simple_implement"
+    ]
+
+    // Fallback path -- a simpler alternative if the hard version keeps failing
+    simple_implement [
+        label="Implement (Simple)",
+        prompt="Write a basic email validation regex. Don't worry about RFC 5322 edge cases -- just handle common email formats like user@domain.com.",
+        goal_gate=true,
+        allow_partial=true
+    ]
+
+    // Validation
+    validate [
+        label="Validate",
+        prompt="Test the email regex against these cases: valid@email.com, user+tag@domain.co.uk, 'quoted'@example.com, invalid@, @nodomain, plaintext. Report which pass and which fail."
+    ]
+
+    // Primary path
+    start -> plan -> implement -> validate -> done
+
+    // Fallback path merges into validation
+    simple_implement -> validate
+
+    // Explicit fail edge from validate back to implement
+    validate -> implement [label="Retry", condition="outcome=fail"]
+}

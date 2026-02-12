@@ -1,0 +1,186 @@
+// 10-full-attractor.dot -- The complete kitchen sink.
+//
+// A realistic "build a feature" pipeline that exercises EVERY Attractor
+// feature together: linear + conditional + parallel + human gate + retry,
+// model stylesheet, fidelity modes, goal gates, $goal variable expansion,
+// multiple codergen nodes, edge weights, and condition expressions.
+//
+// Scenario: Build a new "user notifications" feature with backend API,
+// frontend UI, integration, testing, and human review before shipping.
+
+digraph FullAttractor {
+    graph [
+        goal="Build a user notifications feature with real-time WebSocket delivery, email fallback, and a React notification center UI",
+        label="Full Attractor Kitchen Sink",
+        default_fidelity="compact",
+        default_max_retry=3,
+        retry_target="plan",
+        fallback_retry_target="plan",
+        model_stylesheet="
+            * {
+                llm_model: claude-sonnet-4-20250514;
+                llm_provider: anthropic;
+                reasoning_effort: medium;
+            }
+            .planning {
+                llm_model: o3;
+                llm_provider: openai;
+                reasoning_effort: high;
+            }
+            .code {
+                llm_model: claude-sonnet-4-20250514;
+                llm_provider: anthropic;
+            }
+            .fast {
+                llm_model: gemini-2.5-flash-preview-05-20;
+                llm_provider: gemini;
+                reasoning_effort: low;
+            }
+            #final_review {
+                llm_model: claude-opus-4-20250514;
+                llm_provider: anthropic;
+                reasoning_effort: high;
+            }
+        "
+    ]
+    rankdir=TB
+
+    // -- Structural nodes ---------------------------------------------------
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // -- Stage 1: Planning (uses .planning class -> o3 with high reasoning) --
+    plan [
+        label="Plan Feature",
+        class="planning",
+        fidelity="truncate",
+        prompt="Create a comprehensive implementation plan for: $goal\n\nBreak the work into:\n1. Backend: WebSocket server, notification service, email sender\n2. Frontend: React notification center, WebSocket client, toast component\n3. Integration: API contracts, error handling, retry logic\n\nList all files to create and their responsibilities."
+    ]
+
+    // -- Stage 2: Parallel implementation (fan-out to backend + frontend) ---
+    parallel_impl [
+        shape=component,
+        label="Implement in Parallel",
+        join_policy="wait_all",
+        error_policy="continue",
+        max_parallel=2
+    ]
+
+    // Backend branch -- shares a thread with full fidelity for continuity
+    implement_backend [
+        label="Implement Backend",
+        class="code",
+        fidelity="full",
+        thread_id="backend-impl",
+        goal_gate=true,
+        max_retries=2,
+        retry_target="plan",
+        prompt="Implement the backend notification service:\n- WebSocket server for real-time delivery\n- Notification creation and storage API\n- Email fallback sender for offline users\nFollow the plan. Goal: $goal"
+    ]
+
+    // Frontend branch -- separate thread
+    implement_frontend [
+        label="Implement Frontend",
+        class="code",
+        fidelity="full",
+        thread_id="frontend-impl",
+        goal_gate=true,
+        max_retries=2,
+        retry_target="plan",
+        prompt="Implement the frontend notification UI:\n- React NotificationCenter component\n- WebSocket client hook (useNotifications)\n- Toast notification component\nFollow the plan. Goal: $goal"
+    ]
+
+    // -- Stage 3: Fan-in to collect parallel results -----------------------
+    collect [
+        shape=tripleoctagon,
+        label="Collect Implementation Results"
+    ]
+
+    // -- Stage 4: Integration (uses compact fidelity from graph default) ----
+    integrate [
+        label="Integrate",
+        class="code",
+        prompt="Integrate the backend and frontend implementations:\n- Connect the React WebSocket client to the backend server\n- Wire up the notification creation API to the UI\n- Add error handling and reconnection logic\nEnsure both components work together."
+    ]
+
+    // -- Stage 5: Testing with conditional gate ----------------------------
+    test [
+        label="Run Tests",
+        class="fast",
+        prompt="Run the full test suite:\n- Backend unit tests (WebSocket, email, API)\n- Frontend component tests (NotificationCenter, Toast)\n- Integration tests (end-to-end notification flow)\nReport pass/fail for each category."
+    ]
+
+    test_gate [
+        shape=diamond,
+        label="All Tests Pass?"
+    ]
+
+    // Fix node for test failures
+    fix_tests [
+        label="Fix Test Failures",
+        class="code",
+        fidelity="summary:high",
+        prompt="The tests failed. Review the test output and fix the issues. Focus on the specific failures and ensure backward compatibility."
+    ]
+
+    // -- Stage 6: Human review gate ----------------------------------------
+    final_review [
+        label="Final Review: Ship this feature?",
+        class="code",
+        fidelity="summary:high",
+        prompt="Perform a comprehensive review of the notifications feature. Check for security issues, performance concerns, accessibility, and code quality."
+    ]
+
+    review_gate [
+        shape=hexagon,
+        label="Approve for release?"
+    ]
+
+    // Polish node for review feedback
+    polish [
+        label="Polish",
+        class="code",
+        fidelity="summary:medium",
+        prompt="Address the review feedback. Apply the requested changes and improvements."
+    ]
+
+    // -- Flow: the full pipeline -------------------------------------------
+
+    // Linear start
+    start -> plan
+
+    // Plan feeds into parallel implementation
+    plan -> parallel_impl
+
+    // Parallel fan-out: two implementation branches
+    parallel_impl -> implement_backend
+    parallel_impl -> implement_frontend
+
+    // Both branches converge at fan-in
+    implement_backend  -> collect
+    implement_frontend -> collect
+
+    // Integration after fan-in
+    collect -> integrate
+
+    // Testing with conditional routing
+    integrate -> test -> test_gate
+
+    // Conditional edges with conditions and weights
+    test_gate -> final_review [label="Pass", condition="outcome=success", weight=10]
+    test_gate -> fix_tests    [label="Fail", condition="outcome!=success", weight=5]
+
+    // Fix loops back to test
+    fix_tests -> test
+
+    // Final review leads to human gate
+    final_review -> review_gate
+
+    // Human gate choices with accelerator keys
+    review_gate -> done   [label="[S] Ship it!"]
+    review_gate -> polish [label="[P] Polish first"]
+    review_gate -> fix_tests [label="[R] Rework needed"]
+
+    // Polish loops back to review
+    polish -> final_review
+}

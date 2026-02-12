@@ -1,0 +1,85 @@
+// 06-model-stylesheet.dot -- Model selection per node via CSS-like stylesheet.
+//
+// A pipeline that uses model_stylesheet to assign different models to
+// different nodes based on selectors: * (universal), .class, #id, and
+// bare shape name.
+// Tests: stylesheet parsing, selector specificity, property application,
+//        explicit node attribute override, class attribute on nodes.
+
+digraph ModelStylesheet {
+    graph [
+        goal="Refactor a legacy Python codebase to use modern async patterns",
+        label="Model Stylesheet Pipeline",
+        model_stylesheet="
+            * {
+                llm_model: claude-sonnet-4-20250514;
+                llm_provider: anthropic;
+                reasoning_effort: medium;
+            }
+            .planning {
+                llm_model: o3;
+                llm_provider: openai;
+                reasoning_effort: high;
+            }
+            .code {
+                llm_model: claude-sonnet-4-20250514;
+                llm_provider: anthropic;
+            }
+            .fast {
+                llm_model: gemini-2.5-flash-preview-05-20;
+                llm_provider: gemini;
+                reasoning_effort: low;
+            }
+            #critical_review {
+                llm_model: claude-opus-4-20250514;
+                llm_provider: anthropic;
+                reasoning_effort: high;
+            }
+        "
+    ]
+    rankdir=LR
+
+    // Structural nodes
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Planning node -- .planning class -> gets o3 with high reasoning
+    analyze [
+        label="Analyze Codebase",
+        class="planning",
+        prompt="Analyze the legacy codebase and identify all synchronous I/O patterns that should be converted to async. Create a prioritized refactoring plan."
+    ]
+
+    // Code node -- .code class -> gets claude-sonnet
+    refactor [
+        label="Refactor Code",
+        class="code",
+        prompt="Refactor the identified synchronous patterns to use async/await. Follow the refactoring plan from the analysis phase."
+    ]
+
+    // Fast node -- .fast class -> gets gemini-flash with low reasoning
+    lint_check [
+        label="Lint Check",
+        class="fast",
+        prompt="Run a quick lint check on the refactored code. Report any style violations or type errors."
+    ]
+
+    // ID-targeted node -- #critical_review -> gets claude-opus with high reasoning
+    // This overrides the .code class match because #id has higher specificity
+    critical_review [
+        label="Critical Review",
+        class="code",
+        prompt="Perform a thorough code review of the async refactoring. Check for race conditions, missing error handling, and proper resource cleanup. This is a critical gate."
+    ]
+
+    // Node with explicit attribute override -- node attrs beat stylesheet
+    quick_fix [
+        label="Quick Fix",
+        class="code",
+        llm_model="gemini-2.5-flash-preview-05-20",
+        prompt="Apply quick fixes for any issues found in the critical review."
+    ]
+
+    // Flow
+    start -> analyze -> refactor -> lint_check -> critical_review -> quick_fix -> done
+}

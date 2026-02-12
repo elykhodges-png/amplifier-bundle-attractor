@@ -1,0 +1,79 @@
+// 05-parallel-fan-out.dot -- Parallel execution and fan-in.
+//
+// A pipeline that fans out to multiple parallel branches, then fans back in.
+// Tests: parallel handler (shape=component), fan_in handler (shape=tripleoctagon),
+//        join_policy, error_policy, max_parallel, isolated branch contexts,
+//        parallel.results in context for fan-in consumption.
+
+digraph ParallelFanOut {
+    graph [
+        goal="Build a comprehensive test suite for a calculator module",
+        label="Parallel Fan-Out Pipeline"
+    ]
+    rankdir=LR
+
+    // Structural nodes
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Planning stage -- creates the test plan
+    plan [
+        label="Plan Test Suite",
+        prompt="Plan a test suite for a calculator module with three modules: arithmetic (add, subtract, multiply, divide), trigonometry (sin, cos, tan), and statistics (mean, median, mode). List what each module's tests should cover."
+    ]
+
+    // Parallel fan-out node -- shape=component triggers ParallelHandler.
+    // All outgoing edges from this node become parallel branches.
+    parallel_tests [
+        shape=component,
+        label="Write Tests in Parallel",
+        join_policy="wait_all",
+        error_policy="continue",
+        max_parallel=3
+    ]
+
+    // Three parallel branches -- each writes tests for one module
+    test_arithmetic [
+        label="Test Arithmetic",
+        prompt="Write pytest tests for the arithmetic module: test add, subtract, multiply, divide. Include edge cases like division by zero."
+    ]
+
+    test_trig [
+        label="Test Trigonometry",
+        prompt="Write pytest tests for the trigonometry module: test sin, cos, tan. Include tests for special angles (0, 30, 45, 60, 90 degrees) and boundary values."
+    ]
+
+    test_stats [
+        label="Test Statistics",
+        prompt="Write pytest tests for the statistics module: test mean, median, mode. Include tests for empty lists, single elements, and large datasets."
+    ]
+
+    // Fan-in node -- shape=tripleoctagon triggers FanInHandler.
+    // Reads parallel.results from context and selects the best candidate.
+    collect_results [
+        shape=tripleoctagon,
+        label="Collect Results"
+    ]
+
+    // Summary stage -- synthesizes the parallel results
+    summarize [
+        label="Summarize",
+        prompt="Review the test results from all three modules and create a unified test report. Note any failures or gaps in coverage."
+    ]
+
+    // Flow: plan -> parallel -> (3 branches) -> fan_in -> summarize -> done
+    start -> plan -> parallel_tests
+
+    // Fan-out edges: each becomes a parallel branch
+    parallel_tests -> test_arithmetic
+    parallel_tests -> test_trig
+    parallel_tests -> test_stats
+
+    // All branches converge at the fan-in node
+    test_arithmetic -> collect_results
+    test_trig       -> collect_results
+    test_stats      -> collect_results
+
+    // After fan-in, continue linearly
+    collect_results -> summarize -> done
+}

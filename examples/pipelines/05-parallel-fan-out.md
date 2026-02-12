@@ -1,0 +1,77 @@
+# 05 - Parallel Fan-Out Pipeline
+
+## What This Exercises
+
+- **Parallel handler** (`shape=component`): Fans out to multiple branches concurrently
+- **Fan-in handler** (`shape=tripleoctagon`): Consolidates parallel results and selects the best candidate
+- **`join_policy="wait_all"`**: All branches must complete before fan-in proceeds
+- **`error_policy="continue"`**: If one branch fails, other branches still run to completion
+- **`max_parallel=3`**: Bounds concurrent execution to 3 branches (matches our branch count)
+- **Isolated branch contexts**: Each branch gets a `context.clone()` -- changes in one branch don't affect others
+- **`parallel.results` in context**: The parallel handler stores branch results for the fan-in handler to consume
+
+## Pipeline Structure
+
+```
+                          +--> test_arithmetic --+
+                          |                      |
+start -> plan -> parallel +--> test_trig --------+--> collect_results -> summarize -> done
+                          |                      |
+                          +--> test_stats -------+
+```
+
+## Expected Behavior
+
+1. `plan` creates the test plan -> SUCCESS
+2. `parallel_tests` handler activates:
+   - Identifies 3 outgoing edges (fan-out branches)
+   - Clones context for each branch (isolation)
+   - Creates asyncio semaphore with `max_parallel=3`
+   - Emits `pipeline:parallel:started` event with `branch_count=3`
+   - Executes all 3 branches concurrently
+   - Each branch emits `pipeline:parallel:branch:started` and `pipeline:parallel:branch:completed`
+   - Stores results in `context["parallel.results"]` as a list of dicts
+   - Evaluates `wait_all` policy: all 3 must complete (SUCCESS if none failed, PARTIAL_SUCCESS if any failed)
+3. `collect_results` (fan-in) handler:
+   - Reads `parallel.results` from context
+   - Ranks candidates by status (SUCCESS > PARTIAL_SUCCESS > RETRY > FAIL)
+   - Records winner in `parallel.fan_in.best_id` and `parallel.fan_in.best_status`
+4. `summarize` creates a unified report
+5. Pipeline completes
+
+### Join Policy Variations
+
+| Policy | Behavior |
+|--------|----------|
+| `wait_all` | All branches complete. SUCCESS if none failed, PARTIAL_SUCCESS otherwise |
+| `first_success` | Returns as soon as one branch succeeds. Others may be cancelled |
+| `k_of_n` | At least `min_success` branches must succeed (set via node attribute) |
+| `quorum` | At least `quorum_fraction` (e.g., 0.5) of branches must succeed |
+
+### Error Policy Variations
+
+| Policy | Behavior |
+|--------|----------|
+| `continue` | All branches run to completion regardless of failures |
+| `fail_fast` | Cancel remaining branches on first failure |
+| `ignore` | Filter out failed branches from results entirely |
+
+## How to Run
+
+```yaml
+steps:
+  - agent: attractor:pipeline-runner
+    instruction: "Run the parallel fan-out pipeline"
+    context:
+      pipeline_path: "examples/pipelines/05-parallel-fan-out.dot"
+```
+
+## What to Look For
+
+- `parallel:started` event with `branch_count=3`
+- Three `parallel:branch:completed` events (one per branch)
+- `parallel:completed` event with `success_count` and `failure_count`
+- Context contains `parallel.results` (list of 3 result dicts)
+- Context contains `parallel.fan_in.best_id` after fan-in
+- Each branch's log directory has its own `prompt.md`, `response.md`, `status.json`
+- Branch contexts are isolated -- changes in `test_arithmetic` don't appear in `test_trig`

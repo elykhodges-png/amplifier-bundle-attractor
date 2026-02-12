@@ -1,0 +1,92 @@
+// 08-human-gate.dot -- Human-in-the-loop approval gate.
+//
+// A pipeline with a human gate (shape=hexagon) that blocks execution
+// until a human selects an option.
+// Tests: human handler, choices derived from outgoing edges, accelerator
+//        key parsing, suggested_next_ids routing, AutoApproveInterviewer
+//        fallback, multiple human gates, context updates from human choice.
+
+digraph HumanGate {
+    graph [
+        goal="Deploy a new user authentication service to production",
+        label="Human Gate Pipeline"
+    ]
+    rankdir=LR
+
+    // Structural nodes
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Implementation
+    implement [
+        label="Implement Auth Service",
+        prompt="Implement the user authentication service with login, logout, password reset, and session management for: $goal"
+    ]
+
+    // Stage 2: Automated tests
+    test [
+        label="Run Tests",
+        prompt="Run the full test suite for the auth service. Include unit tests, integration tests, and security scans."
+    ]
+
+    // Human gate 1: Code review approval
+    // shape=hexagon resolves to wait.human handler.
+    // Outgoing edge labels become the choices presented to the human.
+    // Accelerator keys are extracted from [X] prefix patterns.
+    review_gate [
+        shape=hexagon,
+        label="Code Review: Approve changes?"
+    ]
+
+    // Stage 3: Deploy to staging
+    deploy_staging [
+        label="Deploy to Staging",
+        prompt="Deploy the auth service to the staging environment. Run smoke tests against the staging endpoint."
+    ]
+
+    // Human gate 2: Production approval with more options
+    prod_gate [
+        shape=hexagon,
+        label="Production Deploy: Ready to ship?"
+    ]
+
+    // Stage 4: Deploy to production
+    deploy_prod [
+        label="Deploy to Production",
+        prompt="Deploy the auth service to production with blue-green deployment. Monitor error rates for 5 minutes after deploy."
+    ]
+
+    // Fix node for rejected reviews
+    fix_issues [
+        label="Fix Issues",
+        prompt="Address the review feedback. Fix the identified issues and prepare for re-review."
+    ]
+
+    // Rollback node
+    rollback [
+        label="Rollback",
+        prompt="Rollback the staging deployment and document what went wrong."
+    ]
+
+    // Flow
+    start -> implement -> test -> review_gate
+
+    // Human gate 1 choices -- accelerator keys extracted from [X] prefix
+    review_gate -> deploy_staging [label="[A] Approve"]
+    review_gate -> fix_issues     [label="[R] Request Changes"]
+
+    // Fix loops back to test
+    fix_issues -> test
+
+    // After staging deploy, second human gate
+    deploy_staging -> prod_gate
+
+    // Human gate 2 choices -- three options
+    prod_gate -> deploy_prod [label="[Y] Yes, deploy to production"]
+    prod_gate -> rollback    [label="[N] No, rollback staging"]
+    prod_gate -> fix_issues  [label="[F] Fix issues first"]
+
+    // Terminal paths
+    deploy_prod -> done
+    rollback -> done
+}

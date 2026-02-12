@@ -1,0 +1,88 @@
+// 07-fidelity-modes.dot -- Context fidelity across stages.
+//
+// A pipeline exercising different fidelity modes to control how much
+// prior context is carried into each node's LLM session.
+// Tests: fidelity attribute on nodes and edges, thread_id for session
+//        reuse, compact/truncate/full/summary modes, fidelity resolution
+//        precedence (edge > node > graph default).
+
+digraph FidelityModes {
+    graph [
+        goal="Build a REST API with authentication, rate limiting, and logging",
+        label="Fidelity Modes Pipeline",
+        default_fidelity="compact"
+    ]
+    rankdir=LR
+
+    // Structural nodes
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Architecture planning -- uses truncate (minimal context)
+    // Fresh session, only gets graph goal and run ID.
+    // Good for the first stage where there's no prior context to carry.
+    architect [
+        label="Architect",
+        fidelity="truncate",
+        prompt="Design the REST API architecture for: $goal\nDefine the endpoints, authentication flow, rate limiting strategy, and logging approach."
+    ]
+
+    // Stage 2: Implement auth -- uses full fidelity with explicit thread_id
+    // Reuses the same LLM session thread as stage 3 (shared thread_id="api-impl").
+    // Full conversation history is preserved within this thread.
+    implement_auth [
+        label="Implement Auth",
+        fidelity="full",
+        thread_id="api-impl",
+        prompt="Implement the authentication middleware based on the architecture plan. Use JWT tokens with refresh token rotation."
+    ]
+
+    // Stage 3: Implement rate limiting -- also uses full fidelity, same thread
+    // Because thread_id="api-impl" matches stage 2, this node sees the full
+    // conversation history from implement_auth.
+    implement_rate_limit [
+        label="Implement Rate Limiting",
+        fidelity="full",
+        thread_id="api-impl",
+        prompt="Implement the rate limiting middleware. Use a sliding window algorithm with Redis as the backing store."
+    ]
+
+    // Stage 4: Implement logging -- uses summary:medium for moderate context
+    // Fresh session with ~1500 token summary of prior stages.
+    // Good for a stage that needs to know what happened but doesn't need
+    // the full conversation.
+    implement_logging [
+        label="Implement Logging",
+        fidelity="summary:medium",
+        prompt="Implement structured logging for all API endpoints. Include request/response logging, error tracking, and audit trails."
+    ]
+
+    // Stage 5: Integration test -- inherits graph default (compact)
+    // Fresh session with structured bullet-point summary.
+    // No explicit fidelity attribute, so falls through to graph default_fidelity.
+    integration_test [
+        label="Integration Test",
+        prompt="Write integration tests that verify auth, rate limiting, and logging work together. Test the full request lifecycle."
+    ]
+
+    // Stage 6: Final review -- edge fidelity override
+    // The EDGE from integration_test sets fidelity="summary:high" which
+    // overrides any node-level or graph-level default (highest precedence).
+    final_review [
+        label="Final Review",
+        fidelity="compact",
+        prompt="Review all implemented components for security vulnerabilities, performance issues, and code quality. This is the final gate."
+    ]
+
+    // Flow with fidelity annotations
+    start -> architect
+    architect -> implement_auth
+    implement_auth -> implement_rate_limit
+    implement_rate_limit -> implement_logging
+    implement_logging -> integration_test
+
+    // Edge-level fidelity override: overrides the node's fidelity="compact"
+    integration_test -> final_review [fidelity="summary:high", thread_id="review-thread"]
+
+    final_review -> done
+}

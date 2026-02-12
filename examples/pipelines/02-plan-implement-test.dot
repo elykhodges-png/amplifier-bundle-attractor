@@ -1,0 +1,39 @@
+// 02-plan-implement-test.dot -- Multi-stage pipeline with a goal gate.
+//
+// The classic plan -> implement -> test cycle.
+// Tests: multi-node traversal, multiple codergen handlers, goal_gate
+//        attribute, context updates flowing between stages.
+
+digraph PlanImplementTest {
+    graph [
+        goal="Build a Python function that calculates Fibonacci numbers",
+        label="Plan-Implement-Test Pipeline"
+    ]
+    rankdir=LR
+
+    // Structural nodes
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Planning
+    plan [
+        label="Plan",
+        prompt="Create a detailed implementation plan for: $goal\nList the function signature, edge cases, and testing strategy."
+    ]
+
+    // Stage 2: Implementation (this MUST succeed before pipeline can exit)
+    implement [
+        label="Implement",
+        prompt="Based on the previous plan, write the Python code to accomplish: $goal",
+        goal_gate=true
+    ]
+
+    // Stage 3: Testing
+    test [
+        label="Test",
+        prompt="Write and run pytest tests for the implementation. Verify correctness for edge cases including fib(0), fib(1), fib(10), and negative inputs."
+    ]
+
+    // Linear flow through all three stages
+    start -> plan -> implement -> test -> done
+}
