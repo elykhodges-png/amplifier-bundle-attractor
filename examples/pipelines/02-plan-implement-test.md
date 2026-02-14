@@ -7,6 +7,7 @@
 - **Goal gate**: `implement` has `goal_gate=true` -- the pipeline cannot exit unless it succeeded
 - **Context updates**: Each stage sets `last_stage` and `last_response` in context, visible to subsequent stages
 - **Variable expansion**: `$goal` is expanded in all prompts
+- **Tool use across stages**: `implement` uses `write_file`, `test` uses both `write_file` and `bash`
 
 ## Pipeline Structure
 
@@ -17,12 +18,16 @@ start --> plan --> implement --> test --> done
 
 ## Expected Behavior
 
-1. `plan` executes first -- creates a plan, returns SUCCESS
-2. `implement` executes next -- writes code, returns SUCCESS (must succeed due to goal_gate)
-3. `test` executes -- runs tests, returns SUCCESS
+1. `plan` executes first -- lists 3 steps to build the function and test file, returns SUCCESS
+2. `implement` executes next -- writes `calculator.py` with type hints and docstring, returns SUCCESS (must succeed due to goal_gate)
+3. `test` executes -- creates `test_calculator.py` with pytest tests (positive, negative, zero, floats), then runs `pytest test_calculator.py` via bash, returns SUCCESS
 4. At `done` (exit node), the engine checks goal gates:
    - `implement` has `goal_gate=true` -- was its outcome SUCCESS? Yes -> proceed
 5. Pipeline completes with SUCCESS
+
+**Files produced on disk:**
+- `calculator.py` -- the implementation (created by `implement` stage)
+- `test_calculator.py` -- the pytest test file (created by `test` stage)
 
 **If `implement` had failed:**
 - The pipeline would still reach `done` via the linear path
@@ -45,5 +50,7 @@ steps:
 - Each has `prompt.md`, `response.md`, and `status.json`
 - `checkpoint.json` shows all three nodes in `completed_nodes`
 - The `implement` node's status.json shows `"outcome": "success"` (goal gate satisfied)
+- `calculator.py` exists on disk with typed `add(a, b)` function
+- `test_calculator.py` exists on disk with four pytest test cases
 - Context contains `last_stage: "test"` after completion
 - Pipeline final outcome is SUCCESS

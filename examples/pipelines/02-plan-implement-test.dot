@@ -9,7 +9,7 @@
 
 digraph PlanImplementTest {
     graph [
-        goal="Build a Python add(a,b) function with a test",
+        goal="Build a Python add(a,b) function with a pytest test file",
         label="Plan-Implement-Test Pipeline"
     ]
     rankdir=LR
@@ -21,20 +21,20 @@ digraph PlanImplementTest {
     // Stage 1: Planning
     plan [
         label="Plan",
-        prompt="List 3 steps to create a Python add(a,b) function with a test. Be brief — 1 sentence per step."
+        prompt="List 3 steps to create a Python add(a,b) function with a pytest test file. Be brief — 1 sentence per step."
     ]
 
     // Stage 2: Implementation (this MUST succeed before pipeline can exit)
     implement [
         label="Implement",
-        prompt="Create calculator.py with a function add(a,b) that returns a+b. Use write_file.",
+        prompt="Create calculator.py with a function add(a, b) that returns a+b. Include type hints and a docstring. Use write_file.",
         goal_gate=true
     ]
 
-    // Stage 3: Testing
+    // Stage 3: Testing — creates a real test file on disk, then runs it
     test [
         label="Test",
-        prompt="Run python3 -c 'from calculator import add; assert add(1,2)==3; print(\"PASS\")' using the bash tool."
+        prompt="Create test_calculator.py with pytest tests for the add function. Include tests for: positive numbers, negative numbers, zero, and floats. Then run pytest test_calculator.py using bash and report the results. Use write_file to create the test file first, then bash to run it."
     ]
 
     // Linear flow through all three stages
