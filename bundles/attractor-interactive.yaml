@@ -30,7 +30,7 @@ providers:
 session:
   orchestrator:
     module: loop-agent
-    source: ../modules/loop-agent
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-agent
     config:
       max_tool_rounds_per_input: 50
       default_command_timeout_ms: 120000
@@ -49,7 +49,7 @@ tools:
   - module: tool-search
     source: git+https://github.com/microsoft/amplifier-module-tool-search@main
   - module: tool-pipeline-run
-    source: ../modules/tool-pipeline-run
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/tool-pipeline-run
     config:
       runner_agent: attractor-pipeline-runner
       profiles:

@@ -5,8 +5,8 @@ bundle:
 
 tools:
   - module: tool-report-outcome
-    source: ./modules/tool-report-outcome
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/tool-report-outcome
 
 hooks:
   - module: hooks-tool-truncation
-    source: ./modules/hooks-tool-truncation
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-tool-truncation

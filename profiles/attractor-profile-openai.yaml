@@ -16,13 +16,13 @@ providers:
 session:
   orchestrator:
     module: loop-agent
-    source: ./modules/loop-agent
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-agent
     config:
       default_command_timeout_ms: 10000
 
 tools:
   - module: tool-apply-patch
-    source: ./modules/tool-apply-patch
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/tool-apply-patch
   - module: tool-filesystem
     source: git+https://github.com/microsoft/amplifier-module-tool-filesystem@main
     config:

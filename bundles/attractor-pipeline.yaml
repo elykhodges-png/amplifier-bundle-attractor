@@ -24,7 +24,7 @@ providers:
 session:
   orchestrator:
     module: loop-pipeline
-    source: ../modules/loop-pipeline
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-pipeline
     config:
       # Maps llm_provider values in DOT node attributes to agent names.
       # The model stylesheet sets llm_provider per node; the engine looks
@@ -65,7 +65,7 @@ agents:
     session:
       orchestrator:
         module: loop-agent
-        source: ../modules/loop-agent
+        source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-agent
         config:
           max_tool_rounds_per_input: 50
           default_command_timeout_ms: 120000
@@ -99,7 +99,7 @@ agents:
     session:
       orchestrator:
         module: loop-agent
-        source: ../modules/loop-agent
+        source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-agent
         config:
           max_tool_rounds_per_input: 50
           default_command_timeout_ms: 120000
@@ -110,7 +110,7 @@ agents:
       - bundle: attractor:behaviors/attractor-core
     tools:
       - module: tool-apply-patch
-        source: ../modules/tool-apply-patch
+        source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/tool-apply-patch
       - module: tool-filesystem
         source: git+https://github.com/microsoft/amplifier-module-tool-filesystem@main
         config:
@@ -137,7 +137,7 @@ agents:
     session:
       orchestrator:
         module: loop-agent
-        source: ../modules/loop-agent
+        source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-agent
         config:
           max_tool_rounds_per_input: 50
           default_command_timeout_ms: 120000
