@@ -7,6 +7,12 @@ bundle:
     Implements the StrongDM Attractor nlspec — a non-interactive coding agent
     structured as a graph of phases, sufficient for use in a Software Factory.
 
+    Entry points:
+      bundles/attractor-pipeline  — Multi-provider pipeline (route nodes to
+                                    Anthropic, OpenAI, or Gemini via model stylesheet)
+      bundles/attractor-agent     — Standalone coding agent (defaults to Anthropic)
+      profiles/*                  — Provider-specific single-agent profiles
+
 includes:
   - bundle: git+https://github.com/microsoft/amplifier-foundation@main
   - bundle: attractor:behaviors/attractor-core
@@ -27,17 +33,80 @@ agents:
 
 A non-interactive coding agent and pipeline framework built on Amplifier.
 
-## Quick Start
+## Entry Points
 
-Use a provider-specific profile for a complete configuration:
+### Multi-Provider Pipeline (`bundles/attractor-pipeline`)
+
+The **primary entry point** for running Attractor pipelines. Wires all three
+providers (Anthropic, OpenAI, Gemini) so the DOT graph's model stylesheet can
+route different nodes to different providers.
 
 ```yaml
 includes:
-  - bundle: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=profiles/attractor-profile-anthropic
+  - bundle: attractor:bundles/attractor-pipeline
 ```
 
-## Available Profiles
+Provide a DOT graph via orchestrator config:
 
-- `attractor:profiles/attractor-profile-openai` — OpenAI (codex-rs aligned, apply_patch)
+```yaml
+session:
+  orchestrator:
+    config:
+      dot_file: ./my-pipeline.dot
+```
+
+See `examples/pipelines/06-model-stylesheet.dot` for a multi-provider pipeline
+example using CSS-like selectors to assign models per node.
+
+### Standalone Coding Agent (`bundles/attractor-agent`)
+
+A simpler entry point for using Attractor as a single coding agent (no
+pipeline). Defaults to Anthropic but the user can override via
+`provider_preferences` at the CLI.
+
+```yaml
+includes:
+  - bundle: attractor:bundles/attractor-agent
+```
+
+Includes `amplifier-foundation` so it works standalone.
+
+### Provider-Specific Profiles (`profiles/`)
+
+Individual single-agent profiles for when you want a specific provider with
+its aligned tool configuration:
+
 - `attractor:profiles/attractor-profile-anthropic` — Anthropic (Claude Code aligned, edit_file)
-- `attractor:profiles/attractor-profile-gemini` — Gemini (gemini-cli aligned)
+- `attractor:profiles/attractor-profile-openai` — OpenAI (codex-rs aligned, apply_patch)
+- `attractor:profiles/attractor-profile-gemini` — Gemini (gemini-cli aligned, web tools)
+
+```yaml
+includes:
+  - bundle: attractor:profiles/attractor-profile-anthropic
+```
+
+## Architecture
+
+```
+attractor/
+├── bundles/                    # Composed entry points
+│   ├── attractor-pipeline.yaml # Multi-provider pipeline (primary)
+│   └── attractor-agent.yaml    # Standalone single agent
+├── profiles/                   # Provider-specific agent profiles
+│   ├── attractor-profile-anthropic.yaml
+│   ├── attractor-profile-openai.yaml
+│   └── attractor-profile-gemini.yaml
+├── behaviors/
+│   └── attractor-core.yaml     # Core tools + hooks (provider-agnostic)
+├── modules/                    # Custom Amplifier modules
+│   ├── loop-pipeline/          # DOT graph-driven pipeline orchestrator
+│   ├── loop-agent/             # Agent loop orchestrator
+│   ├── tool-report-outcome/    # Pipeline outcome reporting tool
+│   ├── tool-apply-patch/       # Patch-based file editing (OpenAI)
+│   └── hooks-tool-truncation/  # Tool output truncation hook
+├── context/                    # System prompts per provider
+│   ├── system-anthropic.md
+│   ├── system-openai.md
+│   └── system-gemini.md
+└── examples/pipelines/         # Example DOT pipeline graphs
+```
