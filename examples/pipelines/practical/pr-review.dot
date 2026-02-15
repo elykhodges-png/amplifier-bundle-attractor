@@ -1,0 +1,80 @@
+// pr-review.dot -- Parallel multi-dimensional PR review pipeline.
+//
+// Analyzes a git diff, then reviews in parallel for bugs, style,
+// security, and performance. Results are prioritized and formatted
+// as actionable PR comments.
+
+digraph PRReview {
+    graph [
+        goal="$goal",
+        label="PR Review Pipeline",
+        model_stylesheet="box { llm_provider: anthropic; llm_model: claude-sonnet-4-20250514 }
+                          .reasoning { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }"
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Analyze the diff
+    analyze [
+        label="Analyze Diff",
+        prompt="Read the git diff for the current PR (use bash: git diff main...HEAD). Summarize: files changed, lines added/removed, modules affected. Store findings in context."
+    ]
+
+    // Stage 2: Parallel category review
+    parallel_review [
+        shape=component,
+        label="Review Categories",
+        join_policy="wait_all",
+        error_policy="continue",
+        max_parallel=4
+    ]
+
+    review_bugs [
+        label="Bug Analysis",
+        prompt="Review the diff for potential bugs: null pointer risks, off-by-one errors, race conditions, resource leaks, missing error handling. List each with file:line and severity."
+    ]
+
+    review_style [
+        label="Style Review",
+        prompt="Review the diff for style issues: naming conventions, code organization, duplication, readability. Only flag issues that matter -- ignore trivial formatting."
+    ]
+
+    review_security [
+        label="Security Review",
+        prompt="Review the diff for security issues: injection risks, auth bypasses, hardcoded secrets, insecure defaults, data exposure. Rate each by CVSS-like severity."
+    ]
+
+    review_perf [
+        label="Performance Review",
+        prompt="Review the diff for performance issues: N+1 queries, unnecessary allocations, missing caching opportunities, O(n^2) algorithms, blocking calls in async context."
+    ]
+
+    // Stage 3: Fan-in and collect
+    collect [shape=tripleoctagon, label="Collect Reviews"]
+
+    // Stage 4: Prioritize findings (reasoning-heavy -- uses o3-mini via class)
+    prioritize [
+        label="Prioritize",
+        class="reasoning",
+        prompt="Given the parallel review results, prioritize findings: (1) Must-fix before merge (bugs, security), (2) Should-fix (perf), (3) Consider (style). Create a ranked list."
+    ]
+
+    // Stage 5: Generate PR comments
+    generate_comments [
+        label="Generate Comments",
+        prompt="For each must-fix and should-fix finding, generate a GitHub PR review comment with: file path, line number, issue description, suggested fix. Format as a markdown checklist.",
+        goal_gate=true
+    ]
+
+    start -> analyze -> parallel_review
+    parallel_review -> review_bugs
+    parallel_review -> review_style
+    parallel_review -> review_security
+    parallel_review -> review_perf
+    review_bugs -> collect
+    review_style -> collect
+    review_security -> collect
+    review_perf -> collect
+    collect -> prioritize -> generate_comments -> done
+}

@@ -60,8 +60,8 @@ digraph MyPipeline {
         default_max_retry=3,
         retry_target="some_node",          // Global fallback retry target
         max_pipeline_duration=5m,          // Abort if exceeded
-        model_stylesheet="box { llm_provider=anthropic; llm_model=claude-sonnet-4-20250514 }
-                          .fast { llm_model=claude-haiku-3-5-20241022 }"
+        model_stylesheet="box { llm_provider: anthropic; llm_model: claude-sonnet-4-20250514 }
+                          .fast { llm_model: claude-haiku-3-5-20241022 }"
     ]
 }
 ```
@@ -71,7 +71,7 @@ digraph MyPipeline {
 CSS-like rules that apply attributes to nodes by shape or class:
 
 ```
-shape_or_class { key=value; key=value; }
+shape_or_class { property: value; property: value; }
 ```
 
 Selectors: `box`, `ellipse`, `diamond`, `.my_class` (via `class="my_class"` on node).

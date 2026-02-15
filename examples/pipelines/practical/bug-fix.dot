@@ -1,0 +1,56 @@
+// bug-fix.dot -- Systematic bug fix pipeline.
+//
+// Reproduce, diagnose, fix, write regression test, verify.
+// Uses o3-mini for diagnosis (reasoning-heavy) via model stylesheet class.
+
+digraph BugFix {
+    graph [
+        goal="$goal",
+        label="Bug Fix Pipeline",
+        default_max_retry=3,
+        model_stylesheet=".reasoning { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }"
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Reproduce the bug
+    reproduce [
+        label="Reproduce",
+        prompt="Attempt to reproduce the bug described in the goal. Write a minimal reproduction script and run it. Capture the error output. If you cannot reproduce it, document what you tried."
+    ]
+
+    // Stage 2: Diagnose the root cause (reasoning-heavy -- uses o3-mini via class)
+    diagnose [
+        label="Diagnose",
+        class="reasoning",
+        prompt="Analyze the reproduction results and the relevant source code. Identify the root cause. Explain: (1) what is happening, (2) why it is happening, (3) which file(s) and line(s) are responsible."
+    ]
+
+    // Stage 3: Implement the fix
+    implement_fix [
+        label="Implement Fix",
+        prompt="Implement the minimal fix for the diagnosed root cause. Change only what is necessary. Explain each change and why it resolves the issue.",
+        goal_gate=true,
+        retry_target="implement_fix"
+    ]
+
+    // Stage 4: Write a regression test
+    regression_test [
+        label="Regression Test",
+        prompt="Write a regression test that: (1) fails without the fix (to prove it tests the right thing), (2) passes with the fix. Add it to the existing test suite."
+    ]
+
+    // Stage 5: Run all tests
+    run_tests [
+        label="Run Tests",
+        prompt="Run the full test suite (pytest -v --tb=short). All tests must pass, including the new regression test. Report results."
+    ]
+
+    // Stage 6: Gate -- routes based on test outcome
+    test_gate [shape=diamond, label="Tests Pass?"]
+
+    start -> reproduce -> diagnose -> implement_fix -> regression_test -> run_tests -> test_gate
+    test_gate -> done [condition="outcome=success"]
+    test_gate -> implement_fix [condition="outcome!=success", label="fix again"]
+}

@@ -1,0 +1,65 @@
+// refactor.dot -- Safe refactoring with snapshot tests.
+//
+// Analyze smells, plan refactoring, capture baseline tests,
+// implement changes, verify no regressions, review diff.
+// Uses o3-mini for planning and diff review (reasoning-heavy) via class.
+
+digraph Refactor {
+    graph [
+        goal="$goal",
+        label="Safe Refactoring Pipeline",
+        default_max_retry=3,
+        model_stylesheet=".reasoning { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }"
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Analyze code smells
+    analyze_smells [
+        label="Analyze Smells",
+        prompt="Analyze the code specified in the goal for code smells: long methods, deep nesting, duplicated logic, god classes, feature envy, primitive obsession. Rank by impact and effort to fix."
+    ]
+
+    // Stage 2: Plan the refactoring (reasoning-heavy)
+    plan_refactor [
+        label="Plan Refactoring",
+        class="reasoning",
+        prompt="Create a step-by-step refactoring plan that preserves behavior. For each step: (1) what changes, (2) why it improves the code, (3) what could break. Order steps to minimize risk -- easiest/safest first."
+    ]
+
+    // Stage 3: Capture baseline (snapshot tests)
+    snapshot_tests [
+        label="Snapshot Tests",
+        prompt="Run the existing test suite and capture the results as a baseline. If no tests exist, write characterization tests that capture current behavior. Use pytest -v --tb=short. Save the output.",
+        goal_gate=true,
+        retry_target="snapshot_tests"
+    ]
+
+    // Stage 4: Implement the refactoring
+    implement_refactor [
+        label="Implement",
+        prompt="Execute the refactoring plan step by step. After each step, ensure the code still compiles/parses correctly. Make small, atomic changes. Use edit_file for surgical edits -- do not rewrite entire files."
+    ]
+
+    // Stage 5: Run tests
+    run_tests [
+        label="Run Tests",
+        prompt="Run the full test suite (pytest -v --tb=short). Compare results against the baseline snapshot. All previously-passing tests must still pass. Report any regressions."
+    ]
+
+    // Stage 6: Gate -- routes based on test outcome
+    test_gate [shape=diamond, label="Tests Pass?"]
+
+    // Stage 7: Diff review (reasoning-heavy)
+    diff_review [
+        label="Diff Review",
+        class="reasoning",
+        prompt="Run git diff and review all changes. Verify: (1) no behavior changes (pure refactoring), (2) code is genuinely simpler/clearer, (3) no accidental deletions or regressions. Summarize the improvements."
+    ]
+
+    start -> analyze_smells -> plan_refactor -> snapshot_tests -> implement_refactor -> run_tests -> test_gate
+    test_gate -> diff_review [condition="outcome=success"]
+    test_gate -> implement_refactor [condition="outcome!=success", label="fix regressions"]
+    diff_review -> done
+}

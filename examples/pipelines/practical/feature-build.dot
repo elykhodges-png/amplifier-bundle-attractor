@@ -1,0 +1,85 @@
+// feature-build.dot -- Feature build with parallel implementation.
+//
+// Parse spec, break into subtasks, implement in parallel,
+// integration test, human review gate.
+
+digraph FeatureBuild {
+    graph [
+        goal="$goal",
+        label="Feature Build Pipeline",
+        default_max_retry=2
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Parse the specification
+    parse_spec [
+        label="Parse Spec",
+        prompt="Read the feature specification or goal. Break it into a structured plan: (1) data model changes, (2) business logic, (3) API/interface changes, (4) tests. List concrete files to create or modify for each."
+    ]
+
+    // Stage 2: Break into subtasks
+    plan_subtasks [
+        label="Plan Subtasks",
+        prompt="From the parsed spec, create 2-3 independent implementation subtasks that can run in parallel. Each subtask should be self-contained: specify which files it creates/modifies and what it implements. Ensure no two subtasks modify the same file."
+    ]
+
+    // Stage 3: Parallel implementation
+    parallel_impl [
+        shape=component,
+        label="Parallel Implement",
+        join_policy="wait_all",
+        error_policy="fail_fast",
+        max_parallel=3
+    ]
+
+    impl_core [
+        label="Core Logic",
+        prompt="Implement the core business logic subtask from the plan. Create/modify only the files assigned to this subtask. Include type hints and docstrings."
+    ]
+
+    impl_api [
+        label="API Layer",
+        prompt="Implement the API/interface layer subtask from the plan. Create/modify only the files assigned to this subtask. Wire up to the core logic interfaces."
+    ]
+
+    impl_tests [
+        label="Unit Tests",
+        prompt="Implement unit tests for the feature. Test the core logic and API layer independently using mocks where needed."
+    ]
+
+    // Stage 4: Fan-in
+    collect [shape=tripleoctagon, label="Collect"]
+
+    // Stage 5: Integration test
+    integration_test [
+        label="Integration Test",
+        prompt="Run all tests together (pytest -v). Fix any integration issues -- import errors, interface mismatches, missing dependencies. Ensure all unit tests and integration tests pass.",
+        goal_gate=true,
+        retry_target="integration_test",
+        max_retries=3
+    ]
+
+    // Stage 6: Gate -- routes based on test outcome
+    test_gate [shape=diamond, label="Tests Pass?"]
+
+    // Stage 7: Human review gate
+    review_gate [
+        shape=hexagon,
+        label="Human Review: Ship or Rework?"
+    ]
+
+    start -> parse_spec -> plan_subtasks -> parallel_impl
+    parallel_impl -> impl_core
+    parallel_impl -> impl_api
+    parallel_impl -> impl_tests
+    impl_core -> collect
+    impl_api -> collect
+    impl_tests -> collect
+    collect -> integration_test -> test_gate
+    test_gate -> review_gate [condition="outcome=success"]
+    test_gate -> integration_test [condition="outcome!=success", label="fix"]
+    review_gate -> done [label="[S] Ship"]
+    review_gate -> integration_test [label="[R] Rework"]
+}

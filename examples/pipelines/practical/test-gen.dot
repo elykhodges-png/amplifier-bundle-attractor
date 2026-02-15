@@ -1,0 +1,55 @@
+// test-gen.dot -- Test generation with validation loop.
+//
+// Analyzes a module, identifies coverage gaps, writes tests,
+// runs them, and fixes failures in a retry loop.
+
+digraph TestGen {
+    graph [
+        goal="$goal",
+        label="Test Generation Pipeline",
+        default_max_retry=3
+    ]
+
+    start [shape=Mdiamond, label="Start"]
+    done  [shape=Msquare, label="Done"]
+
+    // Stage 1: Analyze the module under test
+    analyze [
+        label="Analyze Module",
+        prompt="Read the source files for the module described in the goal. Identify: public API surface, edge cases, error paths, dependencies. List untested code paths."
+    ]
+
+    // Stage 2: Identify untested paths
+    identify_gaps [
+        label="Identify Gaps",
+        prompt="Compare the existing tests (if any) against the module's API surface. List specific untested scenarios: missing edge cases, error handling, boundary conditions, integration points."
+    ]
+
+    // Stage 3: Write tests
+    write_tests [
+        label="Write Tests",
+        prompt="Write pytest tests covering the identified gaps. Include: happy path, edge cases, error cases, boundary values. Use descriptive test names. Write to test files using write_file.",
+        goal_gate=true,
+        retry_target="fix_failures"
+    ]
+
+    // Stage 4: Run tests
+    run_tests [
+        label="Run Tests",
+        prompt="Run the test suite with: pytest -v --tb=short. Report which tests pass and which fail. If all pass, report success. If any fail, report the failure details."
+    ]
+
+    // Stage 5: Gate -- routes based on test outcome
+    test_gate [shape=diamond, label="Tests Pass?"]
+
+    // Stage 6: Fix failures (only reached via retry loop)
+    fix_failures [
+        label="Fix Failures",
+        prompt="Review the test failures from the previous run. For each failure: diagnose the root cause (is it a test bug or a code bug?), fix the test or code as appropriate, and explain the fix."
+    ]
+
+    start -> analyze -> identify_gaps -> write_tests -> run_tests -> test_gate
+    test_gate -> done [condition="outcome=success"]
+    test_gate -> fix_failures [condition="outcome!=success", label="fix"]
+    fix_failures -> run_tests [label="retest"]
+}
