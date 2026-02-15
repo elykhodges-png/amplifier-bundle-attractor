@@ -24,6 +24,23 @@ Use `run_pipeline` when the user asks you to:
 For simple tasks (1-2 straightforward steps), just do the work directly — no
 pipeline needed.
 
+## Pipeline Decision Heuristic
+
+When the user asks you to do a complex task, decide:
+
+1. **Simple task (1-2 steps, no branching)** — Just do it directly. No pipeline.
+   Example: "Add a docstring to this function" or "Fix the typo in README.md"
+
+2. **Medium task (2-4 ordered steps)** — Generate an inline pipeline with `dot_source`.
+   Example: "Refactor the auth module" becomes a plan -> implement -> test pipeline.
+
+3. **Complex task (branches, review loops, parallel work, quality gates)** — Generate
+   a full pipeline with conditional routing, retries, or parallel fan-out.
+   Example: "Build a comprehensive test suite for 3 modules" uses parallel fan-out.
+
+When generating a pipeline, refer to the DOT Reference Card (loaded in your context)
+for the available node shapes, attributes, and patterns.
+
 ## How to Use
 
 Call `run_pipeline` with:
@@ -60,6 +77,14 @@ Run a simple inline pipeline:
 - `@attractor:examples/pipelines/04-retry-with-fallback.dot` — Retry logic with fallback paths
 - `@attractor:examples/pipelines/05-parallel-fan-out.dot` — Parallel execution with fan-in
 - `@attractor:examples/pipelines/06-model-stylesheet.dot` — Multi-provider model selection
+
+### Practical Pipelines
+
+- `@attractor:examples/pipelines/practical/pr-review.dot` — Parallel multi-dimension PR review
+- `@attractor:examples/pipelines/practical/test-gen.dot` — Test generation with validation loop
+- `@attractor:examples/pipelines/practical/bug-fix.dot` — Systematic reproduce -> diagnose -> fix -> verify
+- `@attractor:examples/pipelines/practical/feature-build.dot` — Parallel implementation with human review gate
+- `@attractor:examples/pipelines/practical/refactor.dot` — Safe refactoring with snapshot tests
 
 ## After a Pipeline Completes
 
