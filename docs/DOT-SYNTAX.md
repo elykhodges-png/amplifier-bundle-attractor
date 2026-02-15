@@ -21,10 +21,11 @@ digraph {
 | `Msquare` | exit | Pipeline exit, triggers goal gates | No |
 | `box` | codergen | LLM agent with full tool access | Yes |
 | `ellipse` | codergen | Alias for box | Yes |
-| `diamond` | codergen | Conventionally for decisions/routing | Yes |
+| `diamond` | conditional | Routing node — no LLM call, evaluates edge conditions | No |
 | `component` | parallel | Runs all outgoing edges concurrently | No |
 | `tripleoctagon` | fan_in | Collects results from parallel branches | No |
-| `house` | human_gate | Pauses for human approval | No |
+| `hexagon` | human_gate | Pauses for human approval before proceeding | No |
+| `house` | manager_loop | Nested sub-pipeline (supervisor cycle) | No |
 
 ## Node Attributes Quick Reference
 
@@ -46,7 +47,7 @@ digraph {
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `condition` | string | Python expression: `outcome == 'success'` |
+| `condition` | string | Key=value match: `outcome=success` (NOT Python) |
 | `label` | string | Matched against node's `preferred_label` |
 | `weight` | int | Higher = preferred when multiple edges match |
 | `fidelity` | string | Override fidelity for this transition |
@@ -69,7 +70,7 @@ digraph {
 ```dot
 graph [model_stylesheet="
     box { llm_provider=anthropic; llm_model=claude-sonnet-4-20250514 }
-    diamond { llm_provider=openai; llm_model=o3-mini; reasoning_effort=high }
+    ellipse { llm_provider=openai; llm_model=o3-mini; reasoning_effort=high }
     .fast { llm_model=claude-haiku-3-5-20241022 }
 "]
 ```
@@ -107,8 +108,8 @@ digraph {
     do_work [prompt="$goal", goal_gate=true, retry_target="do_work"]
     verify [prompt="Verify the work"]
     start -> do_work -> verify
-    verify -> done [condition="outcome == 'success'"]
-    verify -> do_work [condition="outcome != 'success'"]
+    verify -> done [condition="outcome=success"]
+    verify -> do_work [condition="outcome!=success"]
 }
 ```
 
@@ -131,7 +132,7 @@ digraph {
 digraph {
     start [shape=Mdiamond]; done [shape=Msquare]
     work [prompt="$goal"]
-    review [shape=house, label="Human Review"]
+    review [shape=hexagon, label="Human Review"]
     start -> work -> review -> done
 }
 ```
@@ -142,10 +143,10 @@ digraph {
     graph [
         goal="$goal",
         model_stylesheet="box { llm_provider=anthropic; llm_model=claude-sonnet-4-20250514 }
-                          diamond { llm_provider=openai; llm_model=o3-mini; reasoning_effort=high }"
+                          ellipse { llm_provider=openai; llm_model=o3-mini; reasoning_effort=high }"
     ]
     start [shape=Mdiamond]; done [shape=Msquare]
-    plan [shape=diamond, prompt="Create a plan for: $goal"]
+    plan [shape=ellipse, prompt="Create a plan for: $goal"]
     implement [prompt="Execute the plan"]
     start -> plan -> implement -> done
 }
