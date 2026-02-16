@@ -12,9 +12,10 @@ Quick reference for generating Attractor DOT pipelines.
 | `ellipse` | codergen | Same as box (alias for readability) |
 | `diamond` | conditional | Routing node -- no LLM call, evaluates edge conditions |
 | `component` | parallel | Fan-out: runs all outgoing edges concurrently |
-| `tripleoctagon` | fan_in | Fan-in: collects parallel branch results |
-| `hexagon` | human_gate | Pauses for human approval before proceeding |
-| `house` | manager_loop | Nested sub-pipeline (advanced) |
+| `tripleoctagon` | parallel.fan_in | Fan-in: collects parallel branch results |
+| `parallelogram` | tool | Direct tool invocation (no LLM) |
+| `hexagon` | wait.human | Pauses for human approval before proceeding |
+| `house` | stack.manager_loop | Nested sub-pipeline (advanced) |
 
 **Important:** `diamond` is a pure router -- it does NOT call an LLM. Place your
 LLM work in a `box` node *before* the diamond, then use the diamond to branch on

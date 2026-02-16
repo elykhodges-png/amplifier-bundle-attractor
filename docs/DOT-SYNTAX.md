@@ -23,9 +23,10 @@ digraph {
 | `ellipse` | codergen | Alias for box | Yes |
 | `diamond` | conditional | Routing node — no LLM call, evaluates edge conditions | No |
 | `component` | parallel | Runs all outgoing edges concurrently | No |
-| `tripleoctagon` | fan_in | Collects results from parallel branches | No |
-| `hexagon` | human_gate | Pauses for human approval before proceeding | No |
-| `house` | manager_loop | Nested sub-pipeline (supervisor cycle) | No |
+| `tripleoctagon` | parallel.fan_in | Collects results from parallel branches | No |
+| `parallelogram` | tool | Direct tool invocation (no LLM) | No |
+| `hexagon` | wait.human | Pauses for human approval before proceeding | No |
+| `house` | stack.manager_loop | Nested sub-pipeline (supervisor cycle) | No |
 
 ## Node Attributes Quick Reference
 
@@ -69,9 +70,9 @@ digraph {
 
 ```dot
 graph [model_stylesheet="
-    box { llm_provider=anthropic; llm_model=claude-sonnet-4-20250514 }
-    ellipse { llm_provider=openai; llm_model=o3-mini; reasoning_effort=high }
-    .fast { llm_model=claude-haiku-3-5-20241022 }
+    box { llm_provider: anthropic; llm_model: claude-sonnet-4-20250514 }
+    ellipse { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }
+    .fast { llm_model: claude-haiku-3-5-20241022 }
 "]
 ```
 
@@ -142,8 +143,8 @@ digraph {
 digraph {
     graph [
         goal="$goal",
-        model_stylesheet="box { llm_provider=anthropic; llm_model=claude-sonnet-4-20250514 }
-                          ellipse { llm_provider=openai; llm_model=o3-mini; reasoning_effort=high }"
+        model_stylesheet="box { llm_provider: anthropic; llm_model: claude-sonnet-4-20250514 }
+                          ellipse { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }"
     ]
     start [shape=Mdiamond]; done [shape=Msquare]
     plan [shape=ellipse, prompt="Create a plan for: $goal"]
