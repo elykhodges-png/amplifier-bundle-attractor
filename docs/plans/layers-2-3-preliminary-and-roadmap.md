@@ -171,7 +171,7 @@ We genuinely don't know which is right yet. Layer 1 and 2 implementation will cl
 
 **Goal gate convergence** is the pipeline's answer to "how do you know the software is done?" Nodes marked as goal gates must succeed. If the pipeline reaches the exit without satisfying all goal gates, it retries. This is fundamentally a graph execution concept — it requires the runner to track node outcomes and backtrack. None of our existing primitives directly support this, though the while/convergence loops in recipes are a distant relative.
 
-**Model stylesheet** (`*.code { llm_model: claude-sonnet-4-5; }`) is elegant. In Amplifier terms, this could be a hook on `provider:request` that reads the pipeline node's class attribute and applies model routing via `modify`. After Layer 1 Phase 3 (orchestrator consistency + ChatRequest.model field), the infrastructure would support this.
+**Model stylesheet** (`*.code { llm_model: claude-sonnet-4-6; }`) is elegant. In Amplifier terms, this could be a hook on `provider:request` that reads the pipeline node's class attribute and applies model routing via `modify`. After Layer 1 Phase 3 (orchestrator consistency + ChatRequest.model field), the infrastructure would support this.
 
 **DOT syntax** as the workflow definition format is a deliberate choice. It's renderable (instant visual feedback), diffable (version-controllable), and a natural fit for graph structures. If we build a pipeline engine, we'd want to support DOT input. There are Python DOT parsers (pydot, graphviz) that could handle this.
 

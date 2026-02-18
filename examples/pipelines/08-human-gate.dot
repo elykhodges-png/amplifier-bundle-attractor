@@ -9,7 +9,9 @@
 digraph HumanGate {
     graph [
         goal="Deploy a new user authentication service to production",
-        label="Human Gate Pipeline"
+        label="Human Gate Pipeline",
+        default_fidelity="full",
+        default_thread_id="human-gate"
     ]
     rankdir=LR
 

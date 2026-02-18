@@ -10,7 +10,9 @@
 digraph PlanImplementTest {
     graph [
         goal="Build a Python add(a,b) function with a pytest test file",
-        label="Plan-Implement-Test Pipeline"
+        label="Plan-Implement-Test Pipeline",
+        default_fidelity="full",
+        default_thread_id="plan-implement-test"
     ]
     rankdir=LR
 

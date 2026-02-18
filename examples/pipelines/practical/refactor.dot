@@ -9,7 +9,9 @@ digraph Refactor {
         goal="$goal",
         label="Safe Refactoring Pipeline",
         default_max_retry=3,
-        model_stylesheet=".reasoning { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }"
+        model_stylesheet=".reasoning { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }",
+        default_fidelity="full",
+        default_thread_id="refactor"
     ]
 
     start [shape=Mdiamond, label="Start"]

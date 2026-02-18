@@ -7,7 +7,9 @@
 digraph ConditionalRouting {
     graph [
         goal="Implement a URL shortener service in Python",
-        label="Conditional Routing Pipeline"
+        label="Conditional Routing Pipeline",
+        default_fidelity="full",
+        default_thread_id="conditional-routing"
     ]
     rankdir=LR
 

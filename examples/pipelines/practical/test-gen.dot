@@ -7,7 +7,9 @@ digraph TestGen {
     graph [
         goal="$goal",
         label="Test Generation Pipeline",
-        default_max_retry=3
+        default_max_retry=3,
+        default_fidelity="full",
+        default_thread_id="test-gen"
     ]
 
     start [shape=Mdiamond, label="Start"]

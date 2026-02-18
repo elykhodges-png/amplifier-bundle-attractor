@@ -2167,7 +2167,7 @@ async def test_backend_spawns_session():
     """Backend uses coordinator.get_capability('session.spawn') to create child session."""
     coordinator = make_mock_coordinator(spawn_returns={"output": "done", "session_id": "child-1"})
     backend = AmplifierBackend(coordinator, profiles={"anthropic": "attractor-anthropic"})
-    node = make_node(id="implement", attrs={"llm_provider": "anthropic", "llm_model": "claude-sonnet-4-5"})
+    node = make_node(id="implement", attrs={"llm_provider": "anthropic", "llm_model": "claude-sonnet-4-6"})
     result = await backend.run(node, "Build the feature", PipelineContext())
     assert coordinator.spawn_called
     assert "done" in str(result)
@@ -2338,7 +2338,7 @@ git add -A && git commit -m "feat: retry logic with exponential backoff and allo
 
 Parse CSS-like stylesheet and apply to nodes:
 ```
-* { llm_model: claude-sonnet-4-5; llm_provider: anthropic; }
+* { llm_model: claude-sonnet-4-6; llm_provider: anthropic; }
 .code { llm_model: claude-opus-4-6; }
 #critical_review { llm_provider: openai; llm_model: gpt-5.2; reasoning_effort: high; }
 ```

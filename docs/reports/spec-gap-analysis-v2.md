@@ -99,7 +99,7 @@ The spec's model stylesheet (Section 8) enables a **single pipeline** to route d
 
 ```dot
 graph [model_stylesheet="
-    * { llm_model: claude-sonnet-4-5; llm_provider: anthropic; }
+    * { llm_model: claude-sonnet-4-6; llm_provider: anthropic; }
     .code { llm_model: claude-opus-4-6; llm_provider: anthropic; }
     #critical_review { llm_model: gpt-5.2; llm_provider: openai; reasoning_effort: high; }
 "]

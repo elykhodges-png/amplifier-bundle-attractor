@@ -8,7 +8,9 @@ digraph BugFix {
         goal="$goal",
         label="Bug Fix Pipeline",
         default_max_retry=3,
-        model_stylesheet=".reasoning { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }"
+        model_stylesheet=".reasoning { llm_provider: openai; llm_model: o3-mini; reasoning_effort: high }",
+        default_fidelity="full",
+        default_thread_id="bug-fix"
     ]
 
     start [shape=Mdiamond, label="Start"]

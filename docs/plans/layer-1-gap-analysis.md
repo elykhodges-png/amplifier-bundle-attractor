@@ -406,7 +406,7 @@ async def route_model(event: str, data: dict) -> HookResult:
     if is_simple_request(data):
         data["model"] = "claude-haiku-3"
     else:
-        data["model"] = "claude-sonnet-4-5"
+        data["model"] = "claude-sonnet-4-6"
     return HookResult(action="modify", data=data)
 ```
 

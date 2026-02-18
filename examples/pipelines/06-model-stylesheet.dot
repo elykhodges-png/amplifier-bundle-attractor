@@ -35,7 +35,9 @@ digraph ModelStylesheet {
                 llm_provider: anthropic;
                 reasoning_effort: high;
             }
-        "
+        ",
+        default_fidelity="full",
+        default_thread_id="model-stylesheet"
     ]
     rankdir=LR
 

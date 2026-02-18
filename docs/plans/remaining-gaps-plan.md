@@ -177,7 +177,7 @@ async def test_environment_context_in_system_prompt():
 
     session = AgentSession(
         config=config, provider=provider, tools={}, hooks=hooks,
-        provider_name="anthropic", model="claude-sonnet-4-5",
+        provider_name="anthropic", model="claude-sonnet-4-6",
     )
     await session.process_input("hello")
 

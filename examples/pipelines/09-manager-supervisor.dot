@@ -9,7 +9,9 @@
 digraph ManagerSupervisor {
     graph [
         goal="Build and test a data pipeline that processes CSV files into a normalized database",
-        label="Manager Supervisor Pipeline"
+        label="Manager Supervisor Pipeline",
+        default_fidelity="full",
+        default_thread_id="manager-supervisor"
     ]
     rankdir=TB
 

@@ -8,7 +8,9 @@
 digraph ParallelFanOut {
     graph [
         goal="Build a comprehensive test suite for a calculator module",
-        label="Parallel Fan-Out Pipeline"
+        label="Parallel Fan-Out Pipeline",
+        default_fidelity="full",
+        default_thread_id="parallel-fan-out"
     ]
     rankdir=LR
 
