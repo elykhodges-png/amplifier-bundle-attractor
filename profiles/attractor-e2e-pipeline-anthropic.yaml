@@ -22,9 +22,9 @@ providers:
 session:
   orchestrator:
     module: loop-pipeline
-    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-pipeline
+    source: file:///home/bkrabach/dev/attractor-next/amplifier-module-loop-pipeline
     config:
-      dot_file: ./tests/e2e/fixtures/simple_file_creation.dot
+      dot_file: /home/bkrabach/dev/attractor-next/amplifier-bundle-attractor/tests/e2e/fixtures/simple_file_creation.dot
       profiles:
         anthropic: attractor-anthropic
 
