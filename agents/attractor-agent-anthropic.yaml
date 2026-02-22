@@ -1,39 +1,35 @@
+# Anthropic coding agent (Claude Code aligned)
+# Uses edit_file with old_string/new_string, 120s shell timeout.
+# Shared definition — referenced by attractor-pipeline, attractor-interactive,
+# and pipeline-runner bundles.
+
 bundle:
-  name: attractor-e2e-pipeline-anthropic
+  name: attractor-agent-anthropic
   version: 0.1.0
-  description: E2E test profile - Anthropic pipeline (spawns agent sessions)
+  description: >
+    Anthropic coding agent (Claude Code aligned).
+    Uses edit_file with old_string/new_string, 120s shell timeout.
 
 includes:
   - bundle: attractor:behaviors/attractor-core
-
-agents:
-  attractor-anthropic:
-    bundle: attractor:profiles/attractor-profile-anthropic
-    description: Anthropic coding agent (Claude) for pipeline nodes
 
 providers:
   - module: provider-anthropic
     source: git+https://github.com/microsoft/amplifier-module-provider-anthropic@main
     config:
       default_model: claude-sonnet-4-20250514
-  - module: provider-mock
-    source: git+https://github.com/microsoft/amplifier-module-provider-mock@main
+      timeout: 600
 
 session:
   orchestrator:
-    module: loop-pipeline
-    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-pipeline
+    module: loop-agent
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-agent
     config:
-      dot_file: ./tests/e2e/fixtures/simple_file_creation.dot
-      profiles:
-        anthropic: attractor-anthropic
+      max_tool_rounds_per_input: 50
+      default_command_timeout_ms: 120000
   context:
     module: context-simple
     source: git+https://github.com/microsoft/amplifier-module-context-simple@main
-    config:
-      max_tokens: 300000
-      compact_threshold: 0.8
-      auto_compact: true
 
 tools:
   - module: tool-filesystem

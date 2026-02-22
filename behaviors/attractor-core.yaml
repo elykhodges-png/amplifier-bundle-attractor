@@ -10,3 +10,5 @@ tools:
 hooks:
   - module: hooks-tool-truncation
     source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-tool-truncation
+  - module: hooks-pipeline-progress
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-pipeline-progress
