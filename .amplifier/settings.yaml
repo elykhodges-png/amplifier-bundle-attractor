@@ -1,0 +1,16 @@
+# Project-level settings for attractor pipeline testing.
+# Overrides the global bundle.app list to exclude superpowers, which
+# transitively includes amplifier-foundation (via modes bundle) and
+# overrides session.orchestrator to loop-streaming.
+# See: https://github.com/microsoft/amplifier-bundle-superpowers - the
+# superpowers-methodology behavior includes the full modes bundle (not
+# the modes behavior), which includes foundation, which sets loop-streaming.
+bundle:
+  app:
+    - git+https://github.com/microsoft/amplifier-bundle-stories@main#subdirectory=behaviors/stories.yaml
+    - git+https://github.com/microsoft/amplifier-bundle-webllm@main#subdirectory=behaviors/webllm.yaml
+    - git+https://github.com/microsoft/amplifier-bundle-containers@main#subdirectory=behaviors/containers.yaml
+    - git+https://github.com/microsoft/amplifier-bundle-rust-dev@main#subdirectory=behaviors/rust-dev.yaml
+    - git+https://github.com/microsoft/amplifier-bundle-browser-tester@main#subdirectory=behaviors/browser.yaml
+    - git+https://github.com/colombod/amplifier-bundle-context-intelligence@main#subdirectory=behaviors/context-intelligence.yaml
+    - git+https://github.com/bkrabach/amplifier-bundle-env-all@main#subdirectory=behaviors/env-all.yaml
