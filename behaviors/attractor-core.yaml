@@ -12,3 +12,8 @@ hooks:
     source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-tool-truncation
   - module: hooks-pipeline-progress
     source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-pipeline-progress
+
+agents:
+  attractor-expert:
+    bundle: attractor:agents/attractor-expert
+    description: Attractor pipeline design expert and DOT authoring consultant

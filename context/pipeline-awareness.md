@@ -97,3 +97,8 @@ When `run_pipeline` returns, the result contains:
 
 Read the result and tell the user what happened. Do NOT call any follow-up tools
 related to the pipeline — it is already complete.
+
+## Deep Questions
+
+For deep pipeline design questions, DOT syntax details, debugging pipeline
+failures, or programmatic integration, delegate to `attractor:attractor-expert`.

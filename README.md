@@ -3,6 +3,15 @@
 Multi-stage AI pipelines for code. Plan, implement, test, review — orchestrated as
 directed graphs.
 
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](docs/GETTING-STARTED.md) | Installation, first pipeline run, provider selection, common gotchas |
+| [DOT Authoring Guide](docs/DOT-AUTHORING-GUIDE.md) | How to design effective pipelines -- patterns, attributes, fidelity, stylesheets |
+| [DOT Syntax Reference](docs/DOT-SYNTAX.md) | Quick reference tables and copy-paste patterns |
+| [App Integration Guide](docs/APP-INTEGRATION-GUIDE.md) | Using pipelines from Python applications (DirectProvider vs AmplifierSession) |
+
 ## Quick Start
 
 **1. Add to your Amplifier config:**
@@ -109,10 +118,12 @@ Quick version -- pipelines are Graphviz DOT digraphs where node shapes determine
 | `Mdiamond` | Start node (entry point) |
 | `Msquare` | Exit node (pipeline end) |
 | `box` | LLM agent node (default) |
+| `diamond` | Decision/routing node |
 | `component` | Parallel fan-out |
 | `tripleoctagon` | Parallel fan-in (collect results) |
 | `hexagon` | Human approval gate |
-| `diamond` | Decision/routing node |
+| `parallelogram` | External tool execution |
+| `house` | Manager/supervisor loop |
 
 Minimal pipeline:
 
@@ -126,6 +137,8 @@ digraph {
 ```
 
 ## Customization
+
+See [DOT Authoring Guide](docs/DOT-AUTHORING-GUIDE.md) for complete patterns and examples.
 
 - **Model stylesheets** -- override provider, model, and reasoning effort per-node via CSS-like selectors:
   ```dot
@@ -262,7 +275,19 @@ in and each pipeline node gets a full child session with tools (filesystem, bash
 search). Without it, you get `DirectProviderBackend` (LLM-only, no tools).
 
 See `amplifier-foundation/examples/07_full_workflow.py` for the reference
-`register_spawn_capability()` implementation.
+`register_spawn_capability()` implementation. For a comprehensive guide,
+see [App Integration Guide](docs/APP-INTEGRATION-GUIDE.md).
+
+## Attractor Expert Agent
+
+Sessions that compose `attractor-core` have access to the `attractor-expert`
+agent -- a context-sink that carries deep knowledge of DOT syntax, pipeline
+patterns, programmatic integration, and debugging. Delegate to it for pipeline
+design questions, DOT authoring help, or troubleshooting:
+
+```
+delegate to attractor:attractor-expert
+```
 
 ## Architecture
 

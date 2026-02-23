@@ -1,0 +1,183 @@
+# Getting Started with Attractor
+
+Multi-stage AI pipelines for code, built on Amplifier.
+
+## Prerequisites
+
+- **Amplifier CLI** installed (`pip install amplifier` or via `uv`)
+- At least one provider API key set in your environment:
+  - `ANTHROPIC_API_KEY` for Anthropic/Claude profiles
+  - `OPENAI_API_KEY` for OpenAI profiles
+  - `GEMINI_API_KEY` for Gemini profiles
+
+## Install the Bundle
+
+Add an attractor profile to your Amplifier config. Pick the provider you want:
+
+```yaml
+# .amplifier/config.yaml
+includes:
+  - bundle: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=profiles/attractor-profile-anthropic
+```
+
+Available profiles: `attractor-profile-anthropic`, `attractor-profile-openai`, `attractor-profile-gemini`.
+
+## Run Your First Pipeline
+
+The simplest pipeline is a linear start-implement-done:
+
+```bash
+amplifier run -B attractor:bundles/attractor-pipeline \
+    --goal "Create a Python script that prints hello world" \
+    --dot-file examples/pipelines/01-simple-linear.dot
+```
+
+This parses the DOT graph, spawns an LLM agent for the `implement` node, and
+runs it to completion.
+
+### Try a Multi-Stage Pipeline
+
+The plan-implement-test pipeline adds structure:
+
+```bash
+amplifier run -B attractor:bundles/attractor-pipeline \
+    --goal "Build a Python add(a,b) function with pytest tests" \
+    --dot-file examples/pipelines/02-plan-implement-test.dot
+```
+
+### Try a Practical Pipeline
+
+Fix a bug systematically (reproduce, diagnose, fix, regression test, verify):
+
+```bash
+amplifier run -B attractor:bundles/attractor-pipeline \
+    --goal "Fix the NullPointerError in UserService.getProfile()" \
+    --dot-file examples/pipelines/practical/bug-fix.dot
+```
+
+## Run Interactively
+
+The interactive bundle gives you a conversational agent that can also invoke
+pipelines on demand via the `run_pipeline` tool:
+
+```bash
+amplifier run -B attractor:bundles/attractor-interactive
+```
+
+Then talk to it:
+
+> "Run the plan-implement-test pipeline to add input validation to the login endpoint"
+
+> "Build a test suite for the auth module using a parallel pipeline"
+
+The agent can pick from the included example pipelines or generate a pipeline
+inline from your description.
+
+## Choosing a Provider Profile
+
+Each profile wires a provider, tools aligned to that provider's conventions,
+and a system prompt:
+
+| Profile | Provider | Tools | Style |
+|---------|----------|-------|-------|
+| `attractor-profile-anthropic` | Claude | `edit_file`, `bash` (120s), `search` | Claude Code conventions |
+| `attractor-profile-openai` | GPT/o-series | `apply_patch` (v4a diffs), `bash` (10s), `search` | codex-rs conventions |
+| `attractor-profile-gemini` | Gemini | `filesystem`, `bash` (10s), `search`, `web` | gemini-cli conventions |
+
+For multi-provider pipelines (different models per node), use the pipeline
+bundle which wires all three:
+
+```bash
+amplifier run -B attractor:bundles/attractor-pipeline \
+    --dot-file examples/pipelines/06-model-stylesheet.dot \
+    --goal "Refactor the auth module"
+```
+
+See [DOT-AUTHORING-GUIDE.md](DOT-AUTHORING-GUIDE.md) for how model stylesheets
+route nodes to providers.
+
+## Entry Points Summary
+
+| Entry Point | Use Case |
+|------------|----------|
+| `bundles/attractor-pipeline` | Multi-provider DOT pipeline (primary) |
+| `bundles/attractor-interactive` | Conversational agent + pipeline tool |
+| `bundles/attractor-agent` | Standalone coding agent (no pipeline) |
+| `profiles/attractor-profile-*` | Single-provider agent profiles |
+
+## Common Gotchas
+
+### Use `uv run pytest` for testing modules
+
+Each module has its own virtual environment managed by `uv`. Always test with:
+
+```bash
+cd modules/loop-pipeline && uv run pytest tests/ -q
+```
+
+Not `python -m pytest` -- that uses the wrong environment.
+
+### Global settings can override bundle configuration
+
+Your `~/.amplifier/settings.yaml` may override the model or orchestrator
+specified in the bundle. If you see unexpected behavior (wrong model, missing
+tools), check for project-level overrides:
+
+```yaml
+# .amplifier/settings.yaml (in the project directory)
+# This overrides global settings for this project only
+settings:
+  provider:
+    model: claude-sonnet-4-20250514
+```
+
+### `last_response` is truncated to 200 characters
+
+By default, the prior node's response is available to the next node as context
+but truncated to 200 characters. If a node needs the full output from a
+previous node, set fidelity to `full`:
+
+```dot
+plan -> implement [fidelity="full"]
+```
+
+Or set it at the graph level:
+
+```dot
+graph [default_fidelity="full"]
+```
+
+See [DOT-AUTHORING-GUIDE.md](DOT-AUTHORING-GUIDE.md) for all fidelity modes.
+
+### The superpowers behavior can override the orchestrator
+
+If your Amplifier config includes the `superpowers` behavior (from foundation),
+it may override the pipeline orchestrator with its own modes. The fix is merged
+upstream. If you hit this, add a project-level `.amplifier/settings.yaml` that
+excludes superpowers, or update your foundation bundle.
+
+## What Next
+
+- [DOT-AUTHORING-GUIDE.md](DOT-AUTHORING-GUIDE.md) -- How to design effective pipelines
+- [DOT-SYNTAX.md](DOT-SYNTAX.md) -- Complete DOT syntax reference
+- [APP-INTEGRATION-GUIDE.md](APP-INTEGRATION-GUIDE.md) -- Using pipelines from Python applications
+- [examples/pipelines/](../examples/pipelines/) -- 15 example pipelines to study and reuse
+- [examples/programmatic_usage.py](../examples/programmatic_usage.py) -- Programmatic integration example
+
+## Development
+
+Run all module tests:
+
+```bash
+for mod in modules/*/; do
+    echo "=== $mod ===" && (cd "$mod" && uv run pytest tests/ -q)
+done
+```
+
+End-to-end tests against live APIs:
+
+```bash
+cd tests/e2e && python live_pipeline_test.py
+```
+
+Requires at least `ANTHROPIC_API_KEY` set. See `tests/e2e/` for details.
