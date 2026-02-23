@@ -3,45 +3,53 @@
 Multi-stage AI pipelines for code. Plan, implement, test, review — orchestrated as
 directed graphs.
 
-## Quick Start (30 seconds)
+## Quick Start
 
-1. Add Attractor to your Amplifier config:
-   ```yaml
-   includes:
-     - bundle: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=profiles/attractor-profile-anthropic
-   ```
+**1. Add to your Amplifier config:**
 
-2. Ask the agent to run a pipeline:
-   > "Run the plan-implement-test pipeline to add input validation to the login endpoint"
+```yaml
+# .amplifier/config.yaml (or any bundle that includes this)
+includes:
+  - bundle: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=profiles/attractor-profile-anthropic
+```
 
-3. Or run directly from the CLI:
-   ```bash
-   amp run --agent attractor-anthropic --goal "Add input validation" \
-       --dot-file examples/pipelines/02-plan-implement-test.dot
-   ```
+Pick your provider: `attractor-profile-anthropic`, `attractor-profile-openai`, or `attractor-profile-gemini`.
 
-4. Or generate a pipeline on-the-fly:
-   > "Build a test suite for the auth module using a parallel pipeline"
+**2. Run a pipeline from the CLI:**
+
+```bash
+amplifier run --agent attractor-profile-anthropic \
+    --goal "Add input validation to the login endpoint" \
+    --dot-file examples/pipelines/02-plan-implement-test.dot
+```
+
+**3. Or just ask conversationally:**
+
+> "Run the plan-implement-test pipeline to add input validation to the login endpoint"
+
+> "Build a test suite for the auth module using a parallel pipeline"
+
+The agent can generate pipelines on-the-fly or use any of the included examples.
 
 ## What Can It Do?
 
-**Fix a bug systematically** — Reproduce, diagnose, fix, regression test, verify:
-```
-amp run --dot-file examples/pipelines/practical/bug-fix.dot \
+**Fix a bug systematically** -- reproduce, diagnose, fix, regression test, verify:
+```bash
+amplifier run --dot-file examples/pipelines/practical/bug-fix.dot \
     --goal "Fix the NullPointerError in UserService.getProfile()"
 ```
 
-**Review a PR in parallel** — Analyze diff, then simultaneously check for bugs, security,
-performance, and style — then prioritize and generate review comments:
-```
-amp run --dot-file examples/pipelines/practical/pr-review.dot \
+**Review a PR in parallel** -- analyze diff, then simultaneously check bugs, security,
+performance, and style -- then synthesize review comments:
+```bash
+amplifier run --dot-file examples/pipelines/practical/pr-review.dot \
     --goal "Review PR #142"
 ```
 
-**Build a feature safely** — Parse spec, parallel implement (core, API, tests),
+**Build a feature safely** -- parse spec, parallel implement (core, API, tests),
 integration test, human review gate:
-```
-amp run --dot-file examples/pipelines/practical/feature-build.dot \
+```bash
+amplifier run --dot-file examples/pipelines/practical/feature-build.dot \
     --goal "Add user avatar upload with S3 storage"
 ```
 
@@ -67,30 +75,34 @@ amp run --dot-file examples/pipelines/practical/feature-build.dot \
 
 ## How It Works
 
-The **loop-pipeline** orchestrator walks a Graphviz DOT digraph. Each node is an AI task
-(or control node like fork/join/gate), and edges define the flow between them. The
-orchestrator spawns a **loop-agent** session per node, which runs a mini agentic tool
-loop — call LLM, execute tools, feed results back — until the node completes.
+The **loop-pipeline** orchestrator walks a Graphviz DOT digraph. Each node is an AI
+task (or control node like fork/join/gate), and edges define the flow between them.
+For each LLM node, the orchestrator spawns a **loop-agent** sub-session that runs
+an agentic tool loop -- call LLM, execute tools, feed results back -- until the
+node's task completes. Results flow forward along edges to the next node.
 
-## Customization
+## Provider Profiles
 
-- **Model stylesheets** — Override provider, model, and reasoning effort per-node via CSS-like selectors
-- **Fidelity modes** — Control context carryover between nodes (full, compact, summary)
-- **Human gates** — Pause pipelines for human approval at any stage
-- **`$param` expansion** — Pass key-value parameters to pipelines for template reuse:
-  ```json
-  {
-    "goal": "Build a REST API",
-    "dot_file": "template.dot",
-    "params": {"language": "Python", "framework": "FastAPI"}
-  }
-  ```
+Each profile wires a provider, an agent loop, provider-aligned tools, and a system
+prompt. All profiles include `attractor-core` (shared hooks and the
+`tool-report-outcome` tool).
+
+| Profile | Provider | Tools | Env Var |
+|---------|----------|-------|---------|
+| `attractor-profile-anthropic` | Anthropic Claude | `tool-filesystem` (read/write/edit), `tool-bash` (120s timeout), `tool-search` | `ANTHROPIC_API_KEY` |
+| `attractor-profile-openai` | OpenAI | `tool-apply-patch` (v4a diffs), `tool-filesystem` (read/write only), `tool-bash` (10s timeout), `tool-search` | `OPENAI_API_KEY` |
+| `attractor-profile-gemini` | Gemini | `tool-filesystem`, `tool-bash` (10s timeout), `tool-search`, `tool-web` (search + fetch) | `GEMINI_API_KEY` |
+
+The Anthropic profile mirrors Claude Code conventions (edit_file with old/new strings,
+long shell timeouts). The OpenAI profile mirrors codex-rs conventions (apply_patch with
+v4a unified diffs, short shell timeouts). The Gemini profile adds web tools for
+grounding.
 
 ## DOT Syntax
 
 See [docs/DOT-SYNTAX.md](docs/DOT-SYNTAX.md) for the complete reference.
 
-Quick version — pipelines are Graphviz DOT digraphs where node shapes determine behavior:
+Quick version -- pipelines are Graphviz DOT digraphs where node shapes determine behavior:
 
 | Shape | What it does |
 |-------|-------------|
@@ -99,42 +111,187 @@ Quick version — pipelines are Graphviz DOT digraphs where node shapes determin
 | `box` | LLM agent node (default) |
 | `component` | Parallel fan-out |
 | `tripleoctagon` | Parallel fan-in (collect results) |
-| `house` | Human approval gate |
+| `hexagon` | Human approval gate |
 | `diamond` | Decision/routing node |
 
-## Available Profiles
+Minimal pipeline:
 
-| Profile | Provider | Best For |
-|---------|----------|----------|
-| `attractor-profile-anthropic` | Anthropic Claude | Tool-heavy coding tasks |
-| `attractor-profile-openai` | OpenAI | Reasoning-heavy analysis |
-| `attractor-profile-gemini` | Gemini | Large context tasks |
+```dot
+digraph {
+    start [shape=Mdiamond]
+    task  [prompt="Do the thing described in $goal"]
+    done  [shape=Msquare]
+    start -> task -> done
+}
+```
+
+## Customization
+
+- **Model stylesheets** -- override provider, model, and reasoning effort per-node via CSS-like selectors:
+  ```dot
+  graph [model_stylesheet="
+      box { llm_provider: anthropic; llm_model: claude-sonnet-4-20250514 }
+      .fast { llm_model: claude-haiku-3-5-20241022 }
+  "]
+  ```
+- **Fidelity modes** -- control context carryover between nodes (`full`, `compact`, `truncate`, `summary`)
+- **Human gates** -- pause pipelines for human approval at any stage
+- **`$param` expansion** -- pass key-value parameters for template reuse:
+  ```json
+  {
+    "goal": "Build a REST API",
+    "dot_file": "template.dot",
+    "params": {"language": "Python", "framework": "FastAPI"}
+  }
+  ```
+
+## Programmatic Usage
+
+The pipeline engine works as a library from any Python app built on
+`amplifier-core` + `amplifier-foundation`. No CLI dependency required.
+
+See [examples/programmatic_usage.py](examples/programmatic_usage.py) for a
+complete, runnable example.
+
+### Option A: Direct LLM calls (no Amplifier session)
+
+Best for analysis/reasoning pipelines where nodes only need to generate text
+(no file editing or shell commands).
+
+```python
+import asyncio
+import tempfile
+from amplifier_module_loop_pipeline.dot_parser import parse_dot
+from amplifier_module_loop_pipeline.engine import PipelineEngine
+from amplifier_module_loop_pipeline.context import PipelineContext
+from amplifier_module_loop_pipeline.handlers import HandlerRegistry
+from amplifier_module_loop_pipeline.transforms import apply_transforms
+from amplifier_module_loop_pipeline.validation import validate_or_raise
+from amplifier_module_loop_pipeline import DirectProviderBackend
+
+DOT = """
+digraph {
+    graph [goal="Explain what a monad is in 3 sentences"]
+    start [shape=Mdiamond]
+    draft [prompt="Write a first draft: $goal", llm_provider="anthropic"]
+    review [prompt="Improve this draft, keep it concise: $context"]
+    done [shape=Msquare]
+    start -> draft -> review -> done
+}
+"""
+
+async def main():
+    graph = parse_dot(DOT)
+    context = PipelineContext()
+    apply_transforms(graph, context)
+    validate_or_raise(graph)
+
+    # provider=None auto-creates unified_llm.Client from env vars
+    backend = DirectProviderBackend(provider=None)
+    engine = PipelineEngine(
+        graph=graph, context=context,
+        handler_registry=HandlerRegistry(backend=backend),
+        logs_root=tempfile.mkdtemp(),
+    )
+    outcome = await engine.run()
+    print(f"Status: {outcome.status.value}")
+    print(f"Result: {outcome.notes}")
+
+asyncio.run(main())
+```
+
+Requirements: `pip install amplifier-module-loop-pipeline unified-llm-client` plus
+an API key in environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`).
+
+### Option B: Full Amplifier session with tools
+
+Best for coding pipelines where nodes need to read/write files, run shell commands,
+and use the full agent tool loop. Each pipeline node gets its own sub-session with
+the complete tool set.
+
+```python
+import asyncio
+from pathlib import Path
+from amplifier_foundation import Bundle, load_bundle
+
+ATTRACTOR_BUNDLE = "git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=profiles/attractor-profile-anthropic"
+
+DOT = """
+digraph {
+    graph [goal="Create a Python function that checks if a number is prime"]
+    start [shape=Mdiamond]
+    implement [prompt="$goal. Write it to prime.py.", goal_gate=true]
+    test [prompt="Write tests for prime.py and run them."]
+    done [shape=Msquare]
+    start -> implement -> test -> done
+}
+"""
+
+async def main():
+    # Load the attractor profile bundle
+    bundle = await load_bundle(ATTRACTOR_BUNDLE)
+
+    # Overlay pipeline config with your DOT source
+    overlay = Bundle(
+        name="my-pipeline",
+        session={"orchestrator": {
+            "module": "loop-pipeline",
+            "config": {"dot_source": DOT},
+        }},
+    )
+    composed = bundle.compose(overlay)
+
+    # Prepare (downloads modules if needed) and create session
+    prepared = await composed.prepare()
+    session = await prepared.create_session(session_cwd=Path.cwd())
+
+    # Register session.spawn so pipeline nodes get full sub-sessions
+    # (See examples/programmatic_usage.py for the spawn capability impl)
+    from examples.programmatic_usage import register_spawn_capability
+    register_spawn_capability(session, prepared)
+
+    async with session:
+        result = await session.execute("Run the pipeline")
+        print(result)
+
+asyncio.run(main())
+```
+
+The key difference: with `session.spawn` registered, the `AmplifierBackend` kicks
+in and each pipeline node gets a full child session with tools (filesystem, bash,
+search). Without it, you get `DirectProviderBackend` (LLM-only, no tools).
+
+See `amplifier-foundation/examples/07_full_workflow.py` for the reference
+`register_spawn_capability()` implementation.
+
+## Architecture
 
 <details>
-<summary>Architecture</summary>
+<summary>Expand architecture details</summary>
 
 ### Layers
 
-- **attractor-core** (behavior): Provider-agnostic tools and hooks shared by all profiles. Includes `tool-report-outcome` and `hooks-tool-truncation`.
-- **Profiles**: Each profile includes `attractor-core` and adds a provider, orchestrator, provider-specific tools, and a system prompt.
-- **Modules**: Self-contained Amplifier modules, each independently testable.
+- **attractor-core** (behavior): Provider-agnostic tools and hooks shared by all profiles. Includes `tool-report-outcome`, `hooks-tool-truncation`, and `hooks-pipeline-progress`.
+- **Profiles**: Each profile includes `attractor-core` and adds a provider, orchestrator (`loop-agent`), provider-specific tools, and a system prompt.
+- **Modules**: Self-contained Amplifier modules in `modules/`, each independently testable with its own `pyproject.toml`.
 
 ### Repository Structure
 
 ```
 amplifier-bundle-attractor/
-├── bundle.md                    # Entry point (thin bundle)
 ├── behaviors/
 │   └── attractor-core.yaml     # Shared tools + hooks (provider-agnostic)
 ├── profiles/                    # Provider-specific complete configs
-│   ├── attractor-profile-openai.yaml
 │   ├── attractor-profile-anthropic.yaml
+│   ├── attractor-profile-openai.yaml
 │   └── attractor-profile-gemini.yaml
 ├── context/                     # System prompts per provider
-│   ├── system-openai.md
 │   ├── system-anthropic.md
+│   ├── system-openai.md
 │   └── system-gemini.md
-├── examples/pipelines/          # 10 example + 5 practical DOT pipelines
+├── examples/
+│   ├── pipelines/               # 10 example + 5 practical DOT pipelines
+│   └── programmatic_usage.py    # Using the engine from Python code
 ├── modules/                     # Amplifier modules
 │   ├── loop-agent/              # Agent loop orchestrator
 │   ├── loop-pipeline/           # DOT graph-driven pipeline orchestrator
@@ -143,8 +300,8 @@ amplifier-bundle-attractor/
 │   ├── tool-pipeline-run/       # Runtime pipeline invocation tool
 │   ├── hooks-tool-truncation/   # Tool output truncation hook
 │   └── hooks-pipeline-progress/ # Pipeline progress reporting hook
-└── docs/                        # Documentation
-    └── DOT-SYNTAX.md            # DOT syntax cheat sheet
+└── docs/
+    └── DOT-SYNTAX.md            # DOT syntax reference
 ```
 
 ### Module Responsibilities
@@ -152,12 +309,20 @@ amplifier-bundle-attractor/
 | Module | Type | Description |
 |--------|------|-------------|
 | `loop-agent` | orchestrator | Single-turn coding agent loop with steering, loop detection, and context management |
-| `loop-pipeline` | orchestrator | Multi-stage DOT graph-driven pipeline with checkpointing and retry |
+| `loop-pipeline` | orchestrator | Multi-stage DOT graph-driven pipeline with checkpointing, retry, and fidelity control |
 | `tool-apply-patch` | tool | v4a unified diff patch application (OpenAI/codex-rs style) |
 | `tool-report-outcome` | tool | Structured result reporting for pipeline integration |
 | `tool-pipeline-run` | tool | Runtime pipeline invocation via session.spawn |
 | `hooks-tool-truncation` | hook | Truncates large tool outputs to manage context window |
 | `hooks-pipeline-progress` | hook | Reports pipeline stage progress |
+
+### Backend Selection
+
+The pipeline orchestrator auto-selects the execution backend:
+
+1. If `session.spawn` capability is registered --> `AmplifierBackend` (full sub-sessions per node, tools included)
+2. Else if a provider is available --> `DirectProviderBackend` (direct LLM calls via `unified_llm`, no tools)
+3. Otherwise --> simulation mode (for testing)
 
 </details>
 
@@ -172,14 +337,31 @@ cd modules/tool-apply-patch && uv run pytest tests/ -q
 cd modules/tool-report-outcome && uv run pytest tests/ -q
 cd modules/tool-pipeline-run && uv run pytest tests/ -q
 cd modules/hooks-tool-truncation && uv run pytest tests/ -q
+cd modules/hooks-pipeline-progress && uv run pytest tests/ -q
 ```
 
-The `pyproject.toml` in each module points to `amplifier-core` via relative path for local development:
+Run all modules:
 
-```toml
-[tool.uv.sources]
-amplifier-core = { path = "../../../amplifier-core", editable = true }
+```bash
+for mod in modules/*/; do
+    echo "=== $mod ===" && (cd "$mod" && uv run pytest tests/ -q)
+done
 ```
+
+### Dependencies
+
+- Modules depend on `amplifier-core`. Each `pyproject.toml` uses a relative path for local dev:
+  ```toml
+  [tool.uv.sources]
+  amplifier-core = { path = "../../../amplifier-core", editable = true }
+  ```
+- `loop-pipeline` additionally depends on `unified-llm-client` (in the same workspace at `../../../unified-llm-client`).
+- For programmatic usage with full sessions: `pip install amplifier-foundation`.
+
+### E2E Tests
+
+Manual end-to-end tests against real LLM providers are in `tests/e2e/`. See
+[tests/e2e/MANUAL_E2E.md](tests/e2e/MANUAL_E2E.md) for instructions.
 
 ## Contributing
 
