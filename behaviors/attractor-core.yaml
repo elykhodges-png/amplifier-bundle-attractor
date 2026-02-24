@@ -12,6 +12,8 @@ hooks:
     source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-tool-truncation
   - module: hooks-pipeline-progress
     source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-pipeline-progress
+  - module: hooks-pipeline-observability
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-pipeline-observability
 
 agents:
   attractor-expert:
