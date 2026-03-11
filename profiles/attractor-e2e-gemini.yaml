@@ -1,32 +1,20 @@
-# Gemini coding agent (gemini-cli aligned)
-# Uses edit_file, includes web tools for grounding.
-# Shared definition — referenced by attractor-pipeline, attractor-interactive,
-# and pipeline-runner bundles.
-
 bundle:
-  name: attractor-agent-gemini
+  name: attractor-e2e-gemini
   version: 0.1.0
-  description: >
-    Gemini coding agent (gemini-cli aligned).
-    Uses edit_file, includes web tools for grounding.
-
-includes:
-  - bundle: attractor:behaviors/attractor-core
+  description: E2E test profile - Gemini agent (no pipeline)
 
 providers:
   - module: provider-gemini
     source: git+https://github.com/microsoft/amplifier-module-provider-gemini@main
     config:
       default_model: gemini-2.5-pro
-      timeout: 600
 
 session:
   orchestrator:
     module: loop-agent
     source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/loop-agent
     config:
-      max_tool_rounds_per_input: 50
-      default_command_timeout_ms: 10000
+      max_tool_rounds_per_input: 20
   context:
     module: context-simple
     source: git+https://github.com/microsoft/amplifier-module-context-simple@main
@@ -37,12 +25,18 @@ tools:
   - module: tool-bash
     source: git+https://github.com/microsoft/amplifier-module-tool-bash@main
     config:
-      timeout: 10
+      timeout: 120
   - module: tool-search
     source: git+https://github.com/microsoft/amplifier-module-tool-search@main
   - module: tool-web
     source: git+https://github.com/microsoft/amplifier-module-tool-web@main
+  - module: tool-report-outcome
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/tool-report-outcome
 
 context:
   include:
     - context/system-gemini.md
+
+hooks:
+  - module: hooks-tool-truncation
+    source: git+https://github.com/microsoft/amplifier-bundle-attractor@main#subdirectory=modules/hooks-tool-truncation
