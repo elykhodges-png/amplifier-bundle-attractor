@@ -2,9 +2,9 @@
 
 > **Execution:** Use the subagent-driven-development workflow to implement this plan.
 
-**Goal:** Build a real-time pipeline monitoring dashboard (FastAPI backend + React frontend) that visualizes Attractor pipeline execution graphs using CXDB as the single source of truth.
+**Goal:** Build a real-time pipeline monitoring dashboard (FastAPI backend + React frontend) that visualizes Attractor pipeline execution graphs using an event store as the single source of truth.
 
-**Architecture:** Standalone web app — FastAPI backend queries CXDB's HTTP API and serves JSON to a React frontend. React Flow renders pipeline DAGs with ELK.js layout. The backend has zero dependency on amplifier-core. A `--mock` flag provides hardcoded sample data so the frontend can be developed before CXDB pipeline events (PR #18) land.
+**Architecture:** Standalone web app — FastAPI backend queries the event store's HTTP API and serves JSON to a React frontend. React Flow renders pipeline DAGs with ELK.js layout. The backend has zero dependency on amplifier-core. A `--mock` flag provides hardcoded sample data so the frontend can be developed before pipeline event store integration lands.
 
 **Tech Stack:** Python 3.11+ / FastAPI / httpx / uvicorn (backend); React 18 / Vite / TypeScript / React Flow v12 / ELK.js / ts-graphviz / React Router v7 (frontend)
 
@@ -77,7 +77,7 @@ Write `amplifier-dashboard-attractor/pyproject.toml`:
 [project]
 name = "amplifier-dashboard-attractor"
 version = "0.1.0"
-description = "Pipeline monitoring dashboard for Attractor — visualizes pipeline execution graphs via CXDB"
+description = "Pipeline monitoring dashboard for Attractor — visualizes pipeline execution graphs"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
@@ -120,7 +120,7 @@ dev = [
 Write `amplifier-dashboard-attractor/amplifier_dashboard_attractor/__init__.py`:
 
 ```python
-"""Attractor Pipeline Dashboard — monitors pipeline execution via CXDB."""
+"""Attractor Pipeline Dashboard — monitors pipeline execution."""
 ```
 
 Write `amplifier-dashboard-attractor/amplifier_dashboard_attractor/server.py`:
@@ -163,9 +163,9 @@ Frontend (dev):
 
 ## Architecture
 
-- **Backend:** FastAPI server querying CXDB HTTP API, serving REST + static SPA
+- **Backend:** FastAPI server querying the event store API, serving REST + static SPA
 - **Frontend:** React + React Flow + ELK.js for DAG visualization
-- **Data source:** CXDB (single source of truth) — no amplifier-core dependency
+- **Data source:** Event store (single source of truth) — no amplifier-core dependency
 ```
 
 **Step 6: Install dependencies and verify the package installs**
@@ -270,8 +270,8 @@ Write `amplifier-dashboard-attractor/amplifier_dashboard_attractor/server.py`:
 ```python
 """FastAPI server for the Attractor Pipeline Dashboard.
 
-Thin stateless server that queries CXDB and serves JSON + static SPA files.
-Supports a --mock flag for development without a live CXDB instance.
+Thin stateless server that queries the event store and serves JSON + static SPA files.
+Supports a --mock flag for development without a live event store instance.
 """
 
 from __future__ import annotations
@@ -316,7 +316,7 @@ def create_app(*, mock: bool = False) -> FastAPI:
 def main():
     """CLI entry point: `dashboard [--mock] [--port PORT]`."""
     parser = argparse.ArgumentParser(description="Attractor Pipeline Dashboard")
-    parser.add_argument("--mock", action="store_true", help="Use mock data instead of CXDB")
+    parser.add_argument("--mock", action="store_true", help="Use mock data instead of the event store")
     parser.add_argument("--port", type=int, default=8050, help="Server port (default: 8050)")
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
     args = parser.parse_args()
@@ -429,7 +429,7 @@ Write `amplifier-dashboard-attractor/amplifier_dashboard_attractor/mock_data.py`
 """Mock PipelineRunState data for --mock mode.
 
 Provides realistic pipeline state dicts matching PipelineRunState.to_dict() output.
-This enables full frontend development without a live CXDB instance.
+This enables full frontend development without a live event store instance.
 
 Data model reference:
   amplifier-bundle-attractor/modules/hooks-pipeline-observability/
@@ -759,11 +759,11 @@ git add -A && git commit -m "feat: mock PipelineRunState data for --mock mode"
 
 ---
 
-## Task 4: Backend — CXDB HTTP Client
+## Task 4: Backend 2014 Event Store HTTP Client
 
-Create a thin async CXDB client that wraps the HTTP API endpoints the dashboard needs. Three methods: search for pipeline contexts (fleet), get turns for a context (pipeline detail), get metrics. Test against mock httpx responses.
+Create a thin async event store client that wraps the HTTP API endpoints the dashboard needs. Three methods: search for pipeline contexts (fleet), get turns for a context (pipeline detail), get metrics. Test against mock httpx responses.
 
-**CXDB HTTP API reference** (from `fix-cxdb-pipeline/modules/cxdb-session-storage/amplifier_module_cxdb_session_storage/cxdb/http/client.py`):
+**Event Store HTTP API reference:**
 - `GET /v1/contexts/search?q={CQL}&limit={N}` — CQL context search
 - `GET /v1/contexts/{id}/turns?limit={N}` — turns with decoded payloads
 - Response for search: `{"contexts": [...], "total_count": N}`
@@ -772,32 +772,32 @@ Create a thin async CXDB client that wraps the HTTP API endpoints the dashboard 
 - System turns have: `data.system.kind`, `data.system.title`, `data.system.content`
 
 **Files:**
-- Create: `amplifier-dashboard-attractor/amplifier_dashboard_attractor/cxdb_client.py`
-- Create: `amplifier-dashboard-attractor/tests/test_cxdb_client.py`
+- Create: `amplifier-dashboard-attractor/amplifier_dashboard_attractor/event_store_client.py`
+- Create: `amplifier-dashboard-attractor/tests/test_event_store_client.py`
 
 **Step 1: Write the failing test**
 
-Write `amplifier-dashboard-attractor/tests/test_cxdb_client.py`:
+Write `amplifier-dashboard-attractor/tests/test_event_store_client.py`:
 
 ```python
-"""Tests for the CXDB HTTP client."""
+"""Tests for the event store HTTP client."""
 
 import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from amplifier_dashboard_attractor.cxdb_client import CxdbClient
+from amplifier_dashboard_attractor.event_store_client import EventStoreClient
 
 
 @pytest.fixture
 def client():
-    return CxdbClient(base_url="http://localhost:8080")
+    return EventStoreClient(base_url="http://localhost:8080")
 
 
 @pytest.mark.asyncio
 async def test_search_pipelines(client):
-    """search_pipelines should query CXDB with a label CQL query."""
+    """search_pipelines should query the event store with a label CQL query."""
     mock_response = AsyncMock()
     mock_response.status_code = 200
     mock_response.raise_for_status = lambda: None
@@ -942,7 +942,7 @@ async def test_get_node_events(client):
 @pytest.mark.asyncio
 async def test_client_close():
     """Client should close its httpx client cleanly."""
-    client = CxdbClient(base_url="http://localhost:8080")
+    client = EventStoreClient(base_url="http://localhost:8080")
     await client.close()
     assert client._http.is_closed
 ```
@@ -951,22 +951,22 @@ async def test_client_close():
 
 ```bash
 cd /home/bkrabach/dev/attractor-next/amplifier-dashboard-attractor
-uv run pytest tests/test_cxdb_client.py -q --tb=short
+uv run pytest tests/test_event_store_client.py -q --tb=short
 ```
 
-Expected: FAIL — `cxdb_client` module does not exist.
+Expected: FAIL — `event_store_client` module does not exist.
 
 **Step 3: Write the implementation**
 
-Write `amplifier-dashboard-attractor/amplifier_dashboard_attractor/cxdb_client.py`:
+Write `amplifier-dashboard-attractor/amplifier_dashboard_attractor/event_store_client.py`:
 
 ```python
-"""Thin async CXDB HTTP client for the dashboard.
+"""Thin async event store HTTP client for the dashboard.
 
-Wraps the three CXDB HTTP API endpoints the dashboard needs.
+Wraps the three event store HTTP API endpoints the dashboard needs.
 No dependency on amplifier-core — uses httpx directly.
 
-CXDB HTTP API reference:
+Event Store HTTP API reference:
   GET /v1/contexts/search?q={CQL}&limit={N}  — CQL context search
   GET /v1/contexts/{id}/turns?limit={N}       — turns with decoded payloads
 """
@@ -981,11 +981,11 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
-class CxdbClient:
-    """Async HTTP client for querying CXDB.
+class EventStoreClient:
+    """Async HTTP client for querying the event store.
 
     Usage:
-        client = CxdbClient(base_url="http://localhost:8080")
+        client = EventStoreClient(base_url="http://localhost:8080")
         results = await client.search_pipelines()
         await client.close()
     """
@@ -998,7 +998,7 @@ class CxdbClient:
         await self._http.aclose()
 
     async def search_pipelines(self, *, status: str | None = None, limit: int = 50) -> list[dict]:
-        """Search CXDB for pipeline contexts.
+        """Search the event store for pipeline contexts.
 
         Uses CQL label search: `label = "pipeline_status:*"` for all pipelines,
         or `label = "pipeline_status:{status}"` for a specific status.
@@ -1083,7 +1083,7 @@ class CxdbClient:
 
 ```bash
 cd /home/bkrabach/dev/attractor-next/amplifier-dashboard-attractor
-uv run pytest tests/test_cxdb_client.py -q --tb=short
+uv run pytest tests/test_event_store_client.py -q --tb=short
 ```
 
 Expected: 5 passed.
@@ -1092,14 +1092,14 @@ Expected: 5 passed.
 
 ```bash
 cd /home/bkrabach/dev/attractor-next/amplifier-dashboard-attractor
-git add -A && git commit -m "feat: CXDB HTTP client (search, pipeline state, node events)"
+git add -A && git commit -m "feat: event store HTTP client (search, pipeline state, node events)"
 ```
 
 ---
 
 ## Task 5: Backend — REST Endpoints
 
-Implement the three REST endpoints. Each endpoint checks `app.state.mock` — if true, returns mock data; otherwise queries CXDB.
+Implement the three REST endpoints. Each endpoint checks `app.state.mock` — if true, returns mock data; otherwise queries the event store.
 
 **Endpoints:**
 - `GET /api/pipelines` — fleet summary
@@ -1224,9 +1224,9 @@ async def list_pipelines(request: Request):
     if request.app.state.mock:
         return get_mock_fleet()
 
-    # Live CXDB path (implemented when CXDB integration is ready)
-    cxdb = request.app.state.cxdb_client
-    contexts = await cxdb.search_pipelines()
+    # Live event store path (implemented when event store integration is ready)
+    store = request.app.state.event_store_client
+    contexts = await store.search_pipelines()
     # TODO: enrich each context with metrics from state snapshots
     return contexts
 
@@ -1240,8 +1240,8 @@ async def get_pipeline(request: Request, context_id: int):
             raise HTTPException(status_code=404, detail=f"Pipeline {context_id} not found")
         return state
 
-    cxdb = request.app.state.cxdb_client
-    state = await cxdb.get_pipeline_state(context_id)
+    store = request.app.state.event_store_client
+    state = await store.get_pipeline_state(context_id)
     if state is None:
         raise HTTPException(status_code=404, detail=f"Pipeline {context_id} not found")
     return state
@@ -1267,8 +1267,8 @@ async def get_node(request: Request, context_id: int, node_id: str):
             ],
         }
 
-    cxdb = request.app.state.cxdb_client
-    events = await cxdb.get_node_events(context_id, node_id)
+    store = request.app.state.event_store_client
+    events = await store.get_node_events(context_id, node_id)
     if not events:
         raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
     return {"node_id": node_id, "events": events}
@@ -1281,8 +1281,8 @@ Edit `amplifier-dashboard-attractor/amplifier_dashboard_attractor/server.py`. Re
 ```python
 """FastAPI server for the Attractor Pipeline Dashboard.
 
-Thin stateless server that queries CXDB and serves JSON + static SPA files.
-Supports a --mock flag for development without a live CXDB instance.
+Thin stateless server that queries the event store and serves JSON + static SPA files.
+Supports a --mock flag for development without a live event store instance.
 """
 
 from __future__ import annotations
@@ -1298,7 +1298,7 @@ from fastapi.staticfiles import StaticFiles
 from amplifier_dashboard_attractor.routes.pipelines import router as pipelines_router
 
 
-def create_app(*, mock: bool = False, cxdb_url: str = "http://localhost:8080") -> FastAPI:
+def create_app(*, mock: bool = False, event_store_url: str = "http://localhost:8080") -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(title="Attractor Pipeline Dashboard", version="0.1.0")
 
@@ -1321,16 +1321,16 @@ def create_app(*, mock: bool = False, cxdb_url: str = "http://localhost:8080") -
     # Register route modules
     app.include_router(pipelines_router)
 
-    # Initialize CXDB client for live mode
+    # Initialize event store client for live mode
     if not mock:
-        from amplifier_dashboard_attractor.cxdb_client import CxdbClient
+        from amplifier_dashboard_attractor.event_store_client import EventStoreClient
 
-        cxdb = CxdbClient(base_url=cxdb_url)
-        app.state.cxdb_client = cxdb
+        store = EventStoreClient(base_url=event_store_url)
+        app.state.event_store_client = store
 
         @app.on_event("shutdown")
-        async def shutdown_cxdb():
-            await cxdb.close()
+        async def shutdown_event_store():
+            await store.close()
 
     # Serve frontend static files if the dist/ directory exists
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
@@ -1343,13 +1343,13 @@ def create_app(*, mock: bool = False, cxdb_url: str = "http://localhost:8080") -
 def main():
     """CLI entry point: `dashboard [--mock] [--port PORT]`."""
     parser = argparse.ArgumentParser(description="Attractor Pipeline Dashboard")
-    parser.add_argument("--mock", action="store_true", help="Use mock data instead of CXDB")
+    parser.add_argument("--mock", action="store_true", help="Use mock data instead of the event store")
     parser.add_argument("--port", type=int, default=8050, help="Server port (default: 8050)")
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default: 127.0.0.1)")
-    parser.add_argument("--cxdb-url", default="http://localhost:8080", help="CXDB HTTP API base URL")
+    parser.add_argument("--event-store-url", default="http://localhost:8080", help="Event store HTTP API base URL")
     args = parser.parse_args()
 
-    app = create_app(mock=args.mock, cxdb_url=args.cxdb_url)
+    app = create_app(mock=args.mock, event_store_url=args.event_store_url)
     uvicorn.run(app, host=args.host, port=args.port)
 
 
@@ -1364,7 +1364,7 @@ cd /home/bkrabach/dev/attractor-next/amplifier-dashboard-attractor
 uv run pytest tests/ -q --tb=short
 ```
 
-Expected: 14 passed (3 server + 6 mock + 5 cxdb_client = 14... but test_routes has 6 tests too — let me recount). Actually: 3 (test_server) + 6 (test_mock_data) + 5 (test_cxdb_client) + 6 (test_routes) = 20 passed.
+Expected: 14 passed (3 server + 6 mock + 5 event_store_client = 14... but test_routes has 6 tests too — let me recount). Actually: 3 (test_server) + 6 (test_mock_data) + 5 (test_event_store_client) + 6 (test_routes) = 20 passed.
 
 **Step 6: Verify the server starts in mock mode**
 
@@ -3171,7 +3171,7 @@ git add -A && git commit -m "feat: pipeline detail view with graph rendering and
 | 1 | Scaffold repo | 7 files + git init + submodule |
 | 2 | FastAPI server skeleton | `server.py`, `test_server.py` |
 | 3 | Mock data | `mock_data.py`, `test_mock_data.py` |
-| 4 | CXDB client | `cxdb_client.py`, `test_cxdb_client.py` |
+| 4 | Event store client | `event_store_client.py`, `test_event_store_client.py` |
 | 5 | REST endpoints | `routes/pipelines.py`, `test_routes.py`, update `server.py` |
 | 6 | Frontend scaffold | 14 files (package.json, vite config, theme, routes, types, api) |
 | 7 | Fleet view | `FleetView.tsx`, `usePolling.ts` |

@@ -15,27 +15,27 @@ The Attractor pipeline engine emits events via `hooks.emit()` at every significa
 
 However, the current `hooks-pipeline-progress` hook only subscribes to 4 of these events and produces minimal output. The result is that pipeline runs are opaque -- operators and agents see a final summary ("converged, Iteration: 0, Passed: 4") with no way to understand what happened during execution. This makes debugging, optimization, and confidence-building impossible.
 
-The Amplifier ecosystem already provides the infrastructure to solve this: hooks for event collection, contribution channels for queryable state, CXDB for structured persistence, and the existing event log for audit trails. The work is on the subscriber/aggregation side, not the emitter side.
+The Amplifier ecosystem already provides the infrastructure to solve this: hooks for event collection, contribution channels for queryable state, and the existing event log for audit trails. The work is on the subscriber/aggregation side, not the emitter side.
 
 ## Key Design Decisions
 
-1. **Leverage the Amplifier ecosystem** -- use hooks for event collection, contribution channels for queryable state, CXDB for structured persistence, and the existing event log for audit trails.
+1. **Leverage the Amplifier ecosystem** -- use hooks for event collection, contribution channels for queryable state, and the existing event log for audit trails.
 2. **Events are already emitted** -- the pipeline engine emits 22 events via `hooks.emit()`. All work is on the subscriber/aggregation side.
 3. **The data model is the centerpiece** -- a comprehensive `PipelineRunState` that every consumer reads from (status hook, progress hook, query tool, future REST API).
-4. **Layered architecture** -- 5 independent layers, each useful on its own, each building on the event stream.
+4. **Layered architecture** -- 4 independent layers, each useful on its own, each building on the event stream.
 
-## Architecture: 5 Layers
+## Architecture: 4 Layers
 
 ```
 Pipeline Engine (already emits 22 events)
         |
-   +---------+---------+---------+---------+---------+
-   |         |         |         |         |         |
-Layer 1   Layer 2   Layer 3   Layer 4   Layer 5
-Enhanced  Status    Event     CXDB      Query
-Progress  Hook     Persist   Handlers  Tool
-Hook     (context  (JSONL)   (PR to    (contrib
-(rich     bar)              CI repo)   channel)
+   +---------+---------+---------+---------+
+   |         |         |         |         |
+Layer 1   Layer 2   Layer 3   Layer 4
+Enhanced  Status    Event     Query
+Progress  Hook     Persist   Tool
+Hook     (context  (JSONL)   (contrib
+(rich     bar)               channel)
  output)
 ```
 
@@ -44,8 +44,7 @@ Each layer is independently useful:
 - **Layer 1** gives human-readable real-time output
 - **Layer 2** gives persistent in-context visibility (like the todo reminder)
 - **Layer 3** gives audit trail and post-hoc analysis via events.jsonl
-- **Layer 4** gives structured queryability via CXDB tools
-- **Layer 5** gives programmatic access for agents and future dashboards
+- **Layer 4** gives programmatic access for agents and future dashboards
 
 ---
 
@@ -125,20 +124,7 @@ This is a small change that enables post-hoc analysis. Pipeline events may alrea
 
 ---
 
-### Layer 4: CXDB Pipeline Handlers (PR to context-intelligence)
-
-Add handlers to the CXDB hook's `build_event_map()` following the existing recipe event pattern. Each pipeline event maps to a `system` turn with structured content. This makes pipeline runs queryable via CXDB tools:
-
-- "Which nodes ran, in what order, how long each took?"
-- "What was the total token usage across all nodes?"
-- "Where did the pipeline fail?"
-- "Compare this run to the previous one"
-
-This is a separate PR to the context-intelligence bundle repository. The handler pattern already exists for recipe events, so the implementation follows an established convention.
-
----
-
-### Layer 5: Pipeline State Aggregator + Query Tool
+### Layer 4: Pipeline State Aggregator + Query Tool
 
 A stateful hook that maintains the comprehensive `PipelineRunState` data model (see next section). Registers on a `pipeline.state` contribution channel, making it queryable by:
 
@@ -318,10 +304,7 @@ Hook Subscribers (all independent, all receive same events)
     +---> Logging Hook (Layer 3, via observability.events registration)
     |         Serializes event -> appends to events.jsonl
     |
-    +---> CXDB Hook (Layer 4)
-    |         Maps event -> system turn -> stored in CXDB for structured queries
-    |
-    +---> State Aggregator (Layer 5)
+    +---> State Aggregator (Layer 4)
               Updates PipelineRunState in memory -> contribution channel
               -> query tool reads it -> agent/dashboard consumes it
 ```
@@ -333,7 +316,7 @@ Hook Subscribers (all independent, all receive same events)
 - If the state aggregator hook throws during event processing, log the error and continue. Observability hooks must never break the pipeline they are observing.
 - The data model maintains `status: "failed"` with error details when pipelines fail.
 - Partial state is still valuable -- a failed pipeline should show exactly how far it got, which nodes succeeded, where the failure occurred, and what metrics accumulated up to that point.
-- Each layer is independent. If CXDB handlers fail, the progress hook and status hook continue unaffected.
+- Each layer is independent. If any hook fails, the other hooks continue unaffected.
 
 ---
 
@@ -358,7 +341,6 @@ Hook Subscribers (all independent, all receive same events)
 
 ### Separate work
 
-- **Layer 4 (CXDB handlers)**: Separate PR to the context-intelligence bundle repository
 - **REST API / dashboard**: Future -- the data model is designed to support it, but no HTTP endpoint in v1
 - **Multi-instance aggregation**: Future -- requires a service layer that collects `PipelineRunState` from multiple sessions
 
@@ -368,4 +350,4 @@ Hook Subscribers (all independent, all receive same events)
 
 1. **Should PipelineRunState be serializable to JSON for writing to a status file (e.g., status.json at logs_root)?** This would give external observers a file to poll without needing coordinator access. Recommendation: yes.
 
-2. **Should the query tool support historical queries (completed pipeline runs from events.jsonl)?** Or only live state from the contribution channel? Recommendation: live-only in v1, historical via CXDB once Layer 4 lands.
+2. **Should the query tool support historical queries (completed pipeline runs from events.jsonl)?** Or only live state from the contribution channel? Recommendation: live-only in v1, historical via event log replay in a future version.

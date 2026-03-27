@@ -9,7 +9,6 @@ Implement 6 enhancements to make the attractor pipeline engine production-ready 
 The attractor pipeline engine can parse and execute DOT-defined pipelines, but several attributes defined in the NLSpec and used in real-world DOT files are not yet wired through. Additionally, the dashboard server lacks submission endpoints for programmatic pipeline execution. These enhancements are driven by the NLSpec and validated against real DOT files from `~/dev`.
 
 Key context:
-- CXDB PR #18 is merged -- pipeline event handlers are in the context-intelligence bundle
 - The NLSpec defines `reasoning_effort`, `allow_partial`, `loop_restart`, parallel execution, and HTTP server mode
 - The `type` attribute (not `node_type`) drives handler dispatch per the NLSpec; `node_type` is only for start/exit identification
 - `max_agent_turns` is a new node-level attribute not in the NLSpec by that name (the spec uses `max_turns` at session scope)
@@ -204,7 +203,6 @@ If providers are not specified, the server reads from environment variables (`AN
 - **Items 5-6** (parallel + loop_restart): Changes to the engine's edge traversal logic
 - **Item 7** (HTTP server): Changes to the dashboard server only
 - No changes to `amplifier-core`, `amplifier-foundation`, or `execution-environments`
-- CXDB integration (PR #18 merged) is a separate concern -- the dashboard already supports `pipeline_logs_reader` as its primary data source
 
 ---
 

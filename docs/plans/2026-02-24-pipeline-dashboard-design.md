@@ -13,14 +13,14 @@ Two audiences:
 
 Attractor pipelines are defined as DOT graphs and executed by the pipeline orchestrator. During execution, nodes transition through states (pending, running, success, failed, retrying, skipped) as LLM calls complete and edge routing decisions are made. Currently there is no visual way to observe this execution -- developers rely on log output. A dashboard would provide real-time visual feedback, historical analysis, and fleet-level monitoring.
 
-The key architectural constraint is that the dashboard server runs as a **separate process** from the pipeline sessions. The richest data source (`pipeline.state` contribution channel) is in-process only. This means state must cross the process boundary through a shared store -- and CXDB already captures pipeline events via its event store hook (PR #18).
+The key architectural constraint is that the dashboard server runs as a **separate process** from the pipeline sessions. The richest data source (`pipeline.state` contribution channel) is in-process only. This means state must cross the process boundary through a shared store -- and the pipeline event store hook already captures pipeline events.
 
 ## Key Design Decisions
 
 1. **Standalone web app** -- separate repo (`amplifier-dashboard-attractor`), no dependency on amplifier-core
-2. **CXDB as the single source of truth** -- the dashboard server is a stateless query translator over CXDB's HTTP API; no separate state management
+2. **Event store as the single source of truth** -- the dashboard server is a stateless query translator over the event store's HTTP API; no separate state management
 3. **React + Vite + React Flow + ELK.js** frontend -- DOM-based graph nodes for full CSS animation support, ELK.js for DAG layout (same algorithm family as Graphviz's `dot`)
-4. **FastAPI backend** -- thin stateless server querying CXDB HTTP API, serving REST + WebSocket + static SPA files
+4. **FastAPI backend** -- thin stateless server querying the event store HTTP API, serving REST + WebSocket + static SPA files
 5. **Dark-theme-first** -- desaturated color palette optimized for developer monitoring sessions, triple-channel state encoding (color + border + motion) for accessibility
 6. **Desktop-first with graceful degradation** -- design baseline at 1440px, functional down to 768px
 
@@ -42,17 +42,17 @@ The key architectural constraint is that the dashboard server runs as a **separa
 **Backend:**
 
 - Standalone FastAPI + uvicorn
-- Queries CXDB HTTP API via httpx (async HTTP client)
+- Queries event store HTTP API via httpx (async HTTP client)
 - No amplifier-core dependency -- fully decoupled
 - Serves static SPA files
-- WebSocket endpoint polls CXDB every 1-2s and pushes diffs to connected browsers
+- WebSocket endpoint polls the event store every 1-2s and pushes diffs to connected browsers
 
 ### Data Path
 
 ```
-Pipeline Session -> CxdbEventStoreHook -> CXDB Server (TCP)
+Pipeline Session -> EventStoreHook -> Event Store Server (TCP)
                                                |
-Dashboard Server (FastAPI) <- CXDB HTTP API queries
+Dashboard Server (FastAPI) <- Event Store HTTP API queries
                                                |
 Browser (React + React Flow) <- REST + WebSocket
 ```
@@ -128,21 +128,21 @@ Glance (node color/label on graph) -> hover (tooltip with 5-6 metrics) -> click 
 
 ## Data Flow
 
-### CXDB Integration
+### Event Store Integration
 
-The dashboard doesn't maintain its own state. CXDB is the single source of truth. Two additions are needed to the CXDB hook (on top of existing PR #18 pipeline event handlers):
+The dashboard doesn't maintain its own state. The event store is the single source of truth. Two additions are needed to the event store hook:
 
-**Addition 1: Pipeline labels on CXDB contexts.** On `pipeline:start`, tag the CXDB context with labels: `pipeline_id:{id}`, `pipeline_status:running`. On `pipeline:complete`, update to `pipeline_status:complete` or `pipeline_status:failed`. This enables fleet queries: `cxdb_search(label="pipeline_status:running")`.
+**Addition 1: Pipeline labels on event store contexts.** On `pipeline:start`, tag the event store context with labels: `pipeline_id:{id}`, `pipeline_status:running`. On `pipeline:complete`, update to `pipeline_status:complete` or `pipeline_status:failed`. This enables fleet queries: `event_store_search(label="pipeline_status:running")`.
 
-**Addition 2: State snapshot system turns.** On each `pipeline:node_complete`, write the full `PipelineRunState.to_dict()` as a CXDB system turn payload (kind: `pipeline_state_snapshot`). This gives the dashboard pre-assembled state in one read without replaying event history. The `dot_source` field is included so the frontend can render the graph.
+**Addition 2: State snapshot system turns.** On each `pipeline:node_complete`, write the full `PipelineRunState.to_dict()` as an event store system turn payload (kind: `pipeline_state_snapshot`). This gives the dashboard pre-assembled state in one read without replaying event history. The `dot_source` field is included so the frontend can render the graph.
 
 ### Dashboard Server Endpoints
 
 ```
-GET  /api/pipelines              -> cxdb_search(label="pipeline_status:*")
+GET  /api/pipelines              -> event_store_search(label="pipeline_status:*")
                                   -> return [{id, status, nodes, elapsed, tokens}]
 
-GET  /api/pipelines/:id          -> cxdb_get_turns(context_id, item_type="system")
+GET  /api/pipelines/:id          -> event_store_get_turns(context_id, item_type="system")
                                   -> find latest pipeline_state_snapshot turn
                                   -> return PipelineRunState dict (includes dot_source)
 
@@ -150,11 +150,11 @@ GET  /api/pipelines/:id/nodes/:nodeId
                                   -> filter turns for node-specific events
                                   -> return node run history, timing, metrics
 
-WS   /ws/pipelines/:id           -> poll CXDB every 1-2s for new turns
+WS   /ws/pipelines/:id           -> poll the event store every 1-2s for new turns
                                   -> push incremental events to connected browsers
 ```
 
-The dashboard server is stateless -- any instance can serve any pipeline. Multiple dashboard instances work without coordination. Historical analysis comes free from CXDB persistence.
+The dashboard server is stateless -- any instance can serve any pipeline. Multiple dashboard instances work without coordination. Historical analysis comes free from event store persistence.
 
 ## Visual Design
 
@@ -228,30 +228,30 @@ Nodes: 160px min-width, 8px border-radius. Inner glow for depth (not drop shadow
 
 ## Error Handling
 
-- **CXDB unavailable:** Dashboard server returns 503 with retry-after header. Frontend shows "Connecting to data source..." banner with automatic retry.
+- **Event store unavailable:** Dashboard server returns 503 with retry-after header. Frontend shows "Connecting to data source..." banner with automatic retry.
 - **WebSocket disconnect:** Frontend reconnects with exponential backoff. On reconnect, fetches full state snapshot to resync.
 - **Stale data:** Each state snapshot includes a timestamp. Frontend shows "last updated X seconds ago" when data is older than 2x the expected polling interval.
 - **Missing DOT source:** If the pipeline_state_snapshot lacks dot_source, the pipeline detail view falls back to a linearized node list instead of the graph.
-- **CXDB query errors:** Dashboard server logs the error and returns a structured error response. Frontend displays error inline without crashing the view.
+- **Event store query errors:** Dashboard server logs the error and returns a structured error response. Frontend displays error inline without crashing the view.
 
 ## Testing Strategy
 
-- **Backend:** pytest with httpx test client for FastAPI endpoints. Mock CXDB HTTP responses. Test each endpoint independently.
+- **Backend:** pytest with httpx test client for FastAPI endpoints. Mock event store HTTP responses. Test each endpoint independently.
 - **Frontend:** Vitest + React Testing Library for component tests. Test custom React Flow node components in isolation. Test state transitions (pending -> running -> success) render correct CSS classes.
-- **Integration:** Playwright for end-to-end tests against a running dashboard + CXDB instance. Verify the fleet view loads, pipeline detail renders a graph, and node drill-down displays data.
+- **Integration:** Playwright for end-to-end tests against a running dashboard + event store instance. Verify the fleet view loads, pipeline detail renders a graph, and node drill-down displays data.
 - **Visual regression:** Storybook for graph node components in each state. Screenshot comparison for state color/border/motion combinations.
 
 ## Implementation Phases
 
 ```
-Phase 1: CXDB Hook Enrichment
+Phase 1: Event Store Hook Enrichment
   - Add pipeline labels to contexts
   - Add state snapshot system turns
-  - Verify with cxdb_get_turns that snapshots are readable
+  - Verify with event_store_get_turns that snapshots are readable
 
 Phase 2: Dashboard Server (REST only, no WebSocket yet)
   - FastAPI app with 3 REST endpoints
-  - Queries CXDB HTTP API
+  - Queries event store HTTP API
   - Returns JSON -- test with curl first
 
 Phase 3: Minimal Frontend
@@ -260,7 +260,7 @@ Phase 3: Minimal Frontend
   - Static files served by FastAPI
 
 Phase 4: Real-time and Polish
-  - WebSocket endpoint with CXDB polling
+  - WebSocket endpoint with event store polling
   - Frontend live update via WebSocket
   - Node drill-down panel
   - Animations and state transitions
